@@ -1,0 +1,88 @@
+body {
+	font-family: open-sans, sans-serif;
+	color: #333;
+
+	max-width: 50em;
+	margin: 0 auto;
+	padding: 1em;
+}
+
+table {
+	border-collapse: collapse;
+	box-shadow: 0px 0px 10px 2px rgba(0, 0, 0, .25);
+	color: white;
+}
+
+thead > tr, thead > tr:nth-child(odd) {
+	background: #2564a2;
+}
+
+tr {
+	background: #1c1c1c;
+}
+
+tr:nth-child(odd) {
+	background: #272727;
+}
+
+td {
+	padding: 0.4em 0.5em;
+}
+
+td[id$='description'] {
+	text-align: center;
+	font-weight: bold;
+}
+
+td:focus {
+	outline: 2px auto #fac92a;
+}
+
+td::selection, td > span::selection {
+	background: #fac92a;
+}
+
+a:link {
+	color: #2564a2;
+}
+
+a:visited {
+	color: #333;
+}
+
+ul {
+	margin: 0;
+	padding-left: 2em;
+	list-style-type: none;
+}
+
+li {
+	text-indent: -0.6em;
+}
+
+li:before {
+	content: "–";
+	position: relative;
+	left: -0.6em;
+}
+
+p, small, ul {
+	margin-bottom: .1em;
+	display: block;
+}
+
+pre {
+	-moz-tab-size: 4;
+	-o-tab-size: 4;
+	-webkit-tab-size: 4;
+	-ms-tab-size: 4;
+	tab-size: 4;
+}
+
+#extinfo-demo table {
+	margin: 1.5em auto;
+}
+
+.count {
+	text-align: right;
+}
