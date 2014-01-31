@@ -11,7 +11,7 @@
 	<h1 id="heading">
 		extinfo-web
 	</h1>
-	<table>
+	<table id="table">
 		<thead>
 			<tr>
 				<td>Address</td>
@@ -44,7 +44,7 @@
 			</tr>
 			<tr>
 				<td>Time Left</td>
-				<td><span id="timeleft"></span> minutes</td>
+				<td id="timeleft"></td>
 			</tr>
 		</tbody>
 	</table>
@@ -122,9 +122,14 @@
 						document.title = value + " // extinfo-web";
 						break;
 					case "timeleft":
+						if (value == 0) {
+							value = "intermission";
+							break;
+						}
+
 						var minutes = Math.floor(value/60);
 						var seconds = value % 60;
-						value = (minutes < 10 ? '0' : '') + minutes + ":" + (seconds < 10 ? '0' : '') + seconds;
+						value = (minutes < 10 ? '0' : '') + minutes + ":" + (seconds < 10 ? '0' : '') + seconds + " minutes";
 						break;
 				}
 
@@ -145,6 +150,22 @@
 		}
 
 		function init() {
+			if (!('WebSocket' in window)) {
+				var error = document.createElement("div");
+				error.className = "error";
+
+				var message = document.createElement("p");
+				message.innerHTML = "sorry, but your browser does not support websockets";
+				error.appendChild(message);
+
+				var tip = document.createElement("small");
+				tip.innerHTML = "try updating your browser";
+				error.appendChild(tip);
+
+				$("table").parentNode.replaceChild(error, $("table"));
+				return;
+			}
+
 			if (window.location.hash.substring(1).match(/[a-zA-Z0-9\\.]+:[0-9]+/)) {
 				var parts = window.location.hash.substring(1).split(':');
 				$("addr").innerHTML = parts[0];

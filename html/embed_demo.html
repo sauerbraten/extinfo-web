@@ -41,7 +41,9 @@
 	</div>
 
 	<p>
-		You'll have to style the resulting table yourself (however, feel free to copy the style from this page if you like it). To target only elements injected into the DOM tree by the embed script, use something like this:
+		You'll have to style the resulting table yourself (however, feel free to copy the style from this page if you like it; formatted CSS is <a href="/style_full.css">here</a>).<br />
+		Note the <code>.error</code> class: in case the browser does not support websockets, a <code>&lt;div&gt;</code> containing more information is shown instead of the table.<br />
+		To target only elements injected into the DOM tree by the embed script, use something like this:
 		<pre>
 #extinfo-demo {
 	table {

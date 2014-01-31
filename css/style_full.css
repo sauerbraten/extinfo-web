@@ -86,3 +86,7 @@ pre {
 .count {
 	text-align: right;
 }
+
+.error {
+	color: #a22525;
+}

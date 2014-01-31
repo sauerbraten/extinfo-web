@@ -55,6 +55,7 @@ func embedJS(resp http.ResponseWriter, req *http.Request) {
 
 func main() {
 	http.Handle("/style.css", http.FileServer(http.Dir("css")))
+	http.Handle("/style_full.css", http.FileServer(http.Dir("css")))
 
 	http.HandleFunc("/", home)
 	http.HandleFunc("/status", status)
