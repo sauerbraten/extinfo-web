@@ -67,14 +67,14 @@
 	<p>about</p>
 	<small>
 		<ul>
+			<li>update interval is 5 seconds</li>
 			<li>backend written in <a href="http://golang.org" target="_blank">go</a></li>
 			<li>code is <a href="http://github.com/sauerbraten/extinfo-web" target="_blank">here</a></li>
 			<li>uses the <a href="https://github.com/sauerbraten/extinfo" target="_blank">extinfo package</a></li>
 			<li>websockets → no page refreshs, no ajax requests</li>
-			<li>hubs group websocket connections by server; check out the <a href="/status" target="_blank">status page</a></li>
-			<li>pollers run concurrently</li>
-			<li>changes at one server are broadcasted to many clients</li>
-			<li>update interval is 5 seconds</li>
+			<li>the <a href="/status" target="_blank">status page</a> lists how many viewers are subscribed to each server</li>
+			<li>1 poller per server</li>
+			<li>hubs broadcast changes at one server to all viewers subscribed to that server</li>
 		</ul>
 	</small>
 
