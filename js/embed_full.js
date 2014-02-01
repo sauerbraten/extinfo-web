@@ -11,11 +11,11 @@
 		sock = new WebSocket("ws://{{.Host}}/ws");
 
 		sock.onclose = function(e) {
-			console.log(" - socket closed - ");
+			//console.log(" - socket closed - ");
 		};
 
 		sock.onmessage = function(m) {
-			console.log("received:", m.data);
+			//console.log("received:", m.data);
 			var parts = m.data.split("\t");
 
 			var field = parts[0];
@@ -35,9 +35,9 @@
 		};
 
 		sock.onopen = function(e) {
-			console.log(" - socket opened - ");
-			sock.send(addr + "\t" + port);
-			console.log("sent:    ", addr + "\t" + port);
+			//console.log(" - socket opened - ");
+			sock.send(addr + ":" + port);
+			//console.log("sent:    ", addr + ":" + port);
 		};
 	}
 

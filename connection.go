@@ -2,28 +2,40 @@ package main
 
 import (
 	"code.google.com/p/go.net/websocket"
+	"io"
 	"log"
 	"net"
+	"sync"
 )
 
 // A connection from a viewer
 type Connection struct {
-	Websocket        *websocket.Conn // the websocket connection
-	OutboundMessages chan string     // buffered channel of outbound messages
+	Websocket        *websocket.Conn  // the websocket connection
+	OutboundMessages chan string      // buffered channel of outbound messages
+	Unregister       chan *Connection // unregister channel of the hub this connection is subsribed to, to handle client closing connection
 }
 
-// Parses the message coming in from the websocket. Incoming messages are of the form "abc.com:1234" and mean that the client wants to subscribe to a server poller.
-func (c *Connection) processRequest() {
+func (c *Connection) readUntilClose(wg sync.WaitGroup) {
 	var message string
 	for {
 		// receive message
 		if err := websocket.Message.Receive(c.Websocket, &message); err != nil {
-			log.Println(err)
-			continue
+			if err == io.EOF {
+				// expected; client closed the connection
+				c.Unregister <- c
+				break
+			} else {
+				log.Println(err)
+				continue
+			}
 		}
-		break
+		c.processMessage(message)
 	}
+	wg.Done()
+}
 
+// Parses the message coming in from the websocket. Incoming messages are of the form "abc.com:1234" and mean that the client wants to subscribe to a server poller.
+func (c *Connection) processMessage(message string) {
 	// get address
 	addr, err := net.ResolveUDPAddr("udp4", message)
 	if err != nil {
@@ -33,6 +45,7 @@ func (c *Connection) processRequest() {
 	}
 
 	h, ok := hubs[addr.String()]
+
 	if !ok {
 		// get hostname
 		names, err := net.LookupAddr(addr.IP.String())
@@ -66,20 +79,21 @@ func (c *Connection) processRequest() {
 		log.Println("spawned new hub for", addr.String())
 	}
 
+	c.Unregister = h.Unregister
 	h.Register <- c
 	h.Poller.getAllOnce()
 }
 
 // reads messages from the channel and writes them to the websocket
-func (c *Connection) writer() {
+func (c *Connection) writeUntilClose(wg sync.WaitGroup) {
 	for message := range c.OutboundMessages {
 		err := websocket.Message.Send(c.Websocket, message)
 		if err != nil {
-			log.Println(err)
+			log.Println("sending:", err)
 			break
 		}
 	}
-	c.Websocket.Close()
+	wg.Done()
 }
 
 // registers websockets
@@ -89,6 +103,12 @@ func websocketHandler(ws *websocket.Conn) {
 		OutboundMessages: make(chan string),
 	}
 
-	c.processRequest()
-	c.writer()
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go c.writeUntilClose(wg)
+	go c.readUntilClose(wg)
+
+	wg.Wait()
+	c.Websocket.Close()
 }

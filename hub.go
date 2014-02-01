@@ -63,13 +63,14 @@ func (h *Hub) run() {
 		case message := <-h.Poller.Updates:
 			// concurrently send message to all subscribers with a 5 second timeout
 			for conn := range h.Connections {
-				go func() {
+				go func(conn *Connection, message string) {
 					select {
 					case conn.OutboundMessages <- message:
 					case <-time.After(5 * time.Second):
+						log.Println("forcing unregister")
 						h.Unregister <- conn
 					}
-				}()
+				}(conn, message)
 			}
 		}
 	}
