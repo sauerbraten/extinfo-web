@@ -29,8 +29,6 @@ func (c *Connection) reader() {
 			continue
 		}
 
-		log.Println(addr)
-
 		h, ok := hubs[addr.String()]
 		if !ok {
 			// get hostname
