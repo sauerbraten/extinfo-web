@@ -4,17 +4,10 @@ import (
 	"code.google.com/p/go.net/websocket"
 	"log"
 	"net/http"
-	"regexp"
 	"text/template"
 )
 
-var (
-	hubs    = map[server]hub{}
-	pollers = map[server]*poller{}
-
-	ipMatcher       = regexp.MustCompile("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")
-	hostnameMatcher = regexp.MustCompile("localhost|([\\a-z\\.-]+)\\.([a-z\\.]{2,6})")
-)
+var hubs = map[string]*Hub{}
 
 func home(resp http.ResponseWriter, req *http.Request) {
 	template.Must(template.ParseFiles("html/index.html")).Execute(resp, req.Host)
@@ -62,7 +55,7 @@ func main() {
 	http.HandleFunc("/demo", demo)
 	http.HandleFunc("/embed.js", embedJS)
 
-	http.Handle("/ws", websocket.Handler(handler))
+	http.Handle("/ws", websocket.Handler(websocketHandler))
 
 	if err := http.ListenAndServe(":1234", nil); err != nil {
 		log.Fatal("ListenAndServe:", err)

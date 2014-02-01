@@ -2,56 +2,74 @@ package main
 
 import (
 	"log"
+	"net"
 	"time"
 )
 
-type server struct {
-	IP   string
-	Host string
-	Port int
+type Hub struct {
+	Connections map[*Connection]bool // registered connections
+	Poller      *Poller
+	//Updates     chan string      // updates to send to subscribers
+	//Quit        chan bool        // channel for hub and poller to notify each other to stop
+	Register   chan *Connection // register requests from connections
+	Unregister chan *Connection // unregister requests from connections
+	Address    *net.UDPAddr     // address of the game server this hub is for
+	Hostname   string           // the game server's hostname
 }
 
-type hub struct {
-	Connections map[*connection]bool // registered connections; exported for template embedding
-	updates     chan string          // updates to send to the connections
-	quit        chan bool            // channel to end polling
-	register    chan *connection     // register requests from connections
-	unregister  chan *connection     // unregister requests from connections
-	S           server               // address and port of the server; exported for template embedding
+func newHubWithPoller(addr *net.UDPAddr, hostname string) (h *Hub, err error) {
+	poller, err := newPoller(addr)
+	if err != nil {
+		return
+	}
+
+	h = &Hub{
+		Connections: map[*Connection]bool{},
+		Poller:      poller,
+		Register:    make(chan *Connection),
+		Unregister:  make(chan *Connection),
+		Address:     addr,
+		Hostname:    hostname,
+	}
+
+	return
 }
 
-func (h hub) run() {
-	t := time.Tick(30 * time.Second)
+func (h *Hub) run() {
+	go h.Poller.pollForever()
 	for {
 		select {
-		case c := <-h.register:
-			h.Connections[c] = true
-		case c := <-h.unregister:
-			log.Println("websocket unregistered from hub", h.S.IP, "port", h.S.Port)
-			delete(h.Connections, c)
-			close(c.send)
-		case m := <-h.updates:
-			for c := range h.Connections {
-				select {
-				case c.send <- m:
-				default:
-					delete(h.Connections, c)
-					close(c.send)
-					go c.ws.Close()
-				}
-			}
-		case <-t:
-			// on each tick, the hub checks if it still has websockets connected
-			// if not, the hub stops the poller and deletes itself
+		case conn := <-h.Register:
+			h.Connections[conn] = true
+			log.Println("websocket registered at hub", h.Address.String())
+
+		case conn := <-h.Unregister:
+			delete(h.Connections, conn)
+			close(conn.OutboundMessages)
+			log.Println("websocket unregistered from hub", h.Address.String())
+
+			// if no subscriber left
 			if len(h.Connections) == 0 {
 				// end poller
-				h.quit <- true
+				h.Poller.Quit <- true
 
 				// remove hub
-				delete(hubs, h.S)
+				delete(hubs, h.Address.String())
 
 				// end goroutine
 				return
+			}
+
+		case message := <-h.Poller.Updates:
+			// concurrently send message to all subscribers with a 5 second timeout
+			for conn := range h.Connections {
+				go func() {
+					select {
+					case conn.OutboundMessages <- message:
+					case <-time.After(5 * time.Second):
+						h.Unregister <- conn
+					}
+				}()
 			}
 		}
 	}

@@ -23,9 +23,9 @@
 		<tbody>
 			{{range .}}
 				<tr>
-					<td>{{.S.Host}}</td>
-					<td>{{.S.IP}}</td>
-					<td>{{.S.Port}}</td>
+					<td>{{.Hostname}}</td>
+					<td>{{.Address.IP}}</td>
+					<td>{{.Address.Port}}</td>
 					<td class="count">{{len .Connections}}</td>
 				</tr>
 			{{end}}

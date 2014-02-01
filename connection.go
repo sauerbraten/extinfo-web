@@ -4,116 +4,89 @@ import (
 	"code.google.com/p/go.net/websocket"
 	"log"
 	"net"
-	"strconv"
-	"strings"
 )
 
-type connection struct {
-	ws   *websocket.Conn // the websocket connection
-	send chan string     // buffered channel of outbound messages
+// A connection from a viewer
+type Connection struct {
+	Websocket        *websocket.Conn // the websocket connection
+	OutboundMessages chan string     // buffered channel of outbound messages
 }
 
-// reads from the websocket
-func (c *connection) reader() {
+// Parses messages coming in from the websocket. Incoming messages are of the form "abc.com:1234" and mean that the client wants to subscribe to a server poller.
+func (c *Connection) reader() {
+	var message string
 	for {
-		var message string
-		err := websocket.Message.Receive(c.ws, &message)
-		if err != nil {
-			break
+		// receive message
+		if err := websocket.Message.Receive(c.Websocket, &message); err != nil {
+			log.Println(err)
+			continue
 		}
-		// subscribe to a hub
 
-		// get sauer address and port
-		parts := strings.Split(message, "\t")
-		addr := strings.ToLower(parts[0])
-		port, err := strconv.Atoi(parts[1])
+		// get address
+		addr, err := net.ResolveUDPAddr("udp4", message)
 		if err != nil {
 			log.Println(err)
+			continue
 		}
 
-		ip := ""
-		host := ""
+		log.Println(addr)
 
-		// get domain or IP, whichever is missing
-		if hostnameMatcher.MatchString(addr) {
-			// hostname given, get IP
-			IPs, err := net.LookupHost(addr)
-			if err != nil {
-				log.Println(err)
-				return
-			}
-
-			ip = IPs[0]
-			host = addr
-		} else if ipMatcher.MatchString(addr) {
-			// IP given, get hostname
-			names, err := net.LookupAddr(addr)
-			if err != nil {
-				log.Println(err)
-			}
-
-			ip = addr
-			host = names[0]
-			// cut off '.' at the end
-			host = host[:len(host)-1]
-		} else {
-			// invalid addr argument, return
-			return
-		}
-
-		s := server{ip, host, port}
-		var p *poller
-
-		h, ok := hubs[s]
+		h, ok := hubs[addr.String()]
 		if !ok {
-			// spawn new poller and hub for new sauer server
-			upd := make(chan string)
-			qui := make(chan bool, 1)
-
-			p, err = newPoller(addr, port, upd, qui)
+			// get hostname
+			names, err := net.LookupAddr(addr.IP.String())
 			if err != nil {
 				log.Println(err)
-				return
+				continue
 			}
 
-			pollers[s] = p
-			hubs[s] = hub{map[*connection]bool{}, upd, qui, make(chan *connection), make(chan *connection), s}
+			hostname := ""
 
-			go hubs[s].run()
-			go p.pollForever()
+			// use first hostname found
+			if len(names) > 0 {
+				hostname = names[0]
+				// cut off trailing '.'
+				hostname = hostname[:len(hostname)-1]
+			}
 
-			h = hubs[s]
+			// spawn new poller and hub for new sauer server
+			h, err = newHubWithPoller(addr, hostname)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 
-			log.Println("spawned new poller for", addr, "port", port)
-		} else {
-			p = pollers[s]
+			hubs[addr.String()] = h
+
+			go h.run()
+
+			log.Println("spawned new hub for", addr.String())
 		}
 
-		log.Println("websocket registered at hub", s.IP, "port", port)
-
-		h.register <- c
-		defer func() { h.unregister <- c }()
-		p.getOnce()
+		h.Register <- c
+		h.Poller.getAllOnce()
 	}
 
-	c.ws.Close()
+	c.Websocket.Close()
 }
 
-// reads from the channel and writes to the websocket
-func (c *connection) writer() {
-	for message := range c.send {
-		err := websocket.Message.Send(c.ws, message)
+// reads messages from the channel and writes them to the websocket
+func (c *Connection) writer() {
+	for message := range c.OutboundMessages {
+		err := websocket.Message.Send(c.Websocket, message)
 		if err != nil {
 			break
 		}
 	}
-	c.ws.Close()
+	c.Websocket.Close()
 }
 
 // registers websockets
-func handler(ws *websocket.Conn) {
-	c := &connection{send: make(chan string, 256), ws: ws}
-
+func websocketHandler(ws *websocket.Conn) {
+	c := &Connection{
+		Websocket:        ws,
+		OutboundMessages: make(chan string),
+	}
 	go c.writer()
 	c.reader()
 }

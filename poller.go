@@ -2,95 +2,107 @@ package main
 
 import (
 	"github.com/sauerbraten/extinfo"
+	"log"
+	"net"
 	"strconv"
 	"time"
 )
 
-type poller struct {
-	quit     chan bool
-	updates  chan string
-	oldInfo  extinfo.BasicInfo
-	server   *extinfo.Server
-	errCount int
+type Poller struct {
+	Quit    chan bool
+	Updates chan string
+	OldInfo extinfo.BasicInfo
+	Server  *extinfo.Server
 }
 
-func newPoller(addr string, port int, upd chan string, qui chan bool) (*poller, error) {
-	s := extinfo.NewServer(addr, port)
-	info, err := s.GetBasicInfo()
+func newPoller(addr *net.UDPAddr) (*Poller, error) {
+	log.Println(addr)
+	server := extinfo.NewServer(addr)
+	info, err := server.GetBasicInfo()
 
-	return &poller{qui, upd, info, s, 0}, err
+	return &Poller{
+		Quit:    make(chan bool),
+		Updates: make(chan string),
+		OldInfo: info,
+		Server:  server,
+	}, err
 }
 
-func (p *poller) pollForever() {
+func (p *Poller) pollForever() {
+	t := time.NewTicker(5 * time.Second)
+	errorCount := 0
 	for {
-		if p.errCount > 10 {
+		if errorCount > 10 {
+			t.Stop()
+			<-p.Quit
 			return
 		}
 
 		select {
-		case q := <-p.quit:
-			if q {
-				return
-			}
-		case <-time.After(5 * time.Second):
+		case <-p.Quit:
+			t.Stop()
+			return
+
+		case <-t.C:
 			err := p.poll()
 			if err != nil {
-				p.errCount++
+				log.Println(err)
+				errorCount++
 			} else {
-				p.errCount = 0
+				errorCount = 0
 			}
 		}
 	}
 }
 
-func (p *poller) poll() error {
-	newInfo, err := p.server.GetBasicInfo()
+func (p *Poller) poll() error {
+	newInfo, err := p.Server.GetBasicInfo()
 	if err != nil {
 		return err
 	}
 
 	p.sendBasicInfoUpdates(newInfo)
 
-	p.oldInfo = newInfo
+	p.OldInfo = newInfo
 	return nil
 }
 
-func (p *poller) getOnce() {
-	p.updates <- "timeleft\t" + strconv.Itoa(p.oldInfo.SecsLeft)
-	p.updates <- "numberofclients\t" + strconv.Itoa(p.oldInfo.NumberOfClients)
-	p.updates <- "maxnumberofclients\t" + strconv.Itoa(p.oldInfo.MaxNumberOfClients)
-	p.updates <- "map\t" + p.oldInfo.Map
-	p.updates <- "mastermode\t" + p.oldInfo.MasterMode
-	p.updates <- "gamemode\t" + p.oldInfo.GameMode
-	p.updates <- "description\t" + p.oldInfo.Description
+func (p *Poller) getAllOnce() {
+	p.Updates <- "timeleft\t" + strconv.Itoa(p.OldInfo.SecsLeft)
+	p.Updates <- "numberofclients\t" + strconv.Itoa(p.OldInfo.NumberOfClients)
+	p.Updates <- "maxnumberofclients\t" + strconv.Itoa(p.OldInfo.MaxNumberOfClients)
+	p.Updates <- "map\t" + p.OldInfo.Map
+	p.Updates <- "mastermode\t" + p.OldInfo.MasterMode
+	p.Updates <- "gamemode\t" + p.OldInfo.GameMode
+	p.Updates <- "description\t" + p.OldInfo.Description
 }
 
-func (p *poller) sendBasicInfoUpdates(newInfo extinfo.BasicInfo) {
+func (p *Poller) sendBasicInfoUpdates(newInfo extinfo.BasicInfo) {
 	// send new time
-	p.updates <- "timeleft\t" + strconv.Itoa(newInfo.SecsLeft)
+	p.Updates <- "timeleft\t" + strconv.Itoa(newInfo.SecsLeft)
 
 	// compare other fields for changes
-	if newInfo.NumberOfClients != p.oldInfo.NumberOfClients {
-		p.updates <- "numberofclients\t" + strconv.Itoa(newInfo.NumberOfClients)
+	if newInfo.NumberOfClients != p.OldInfo.NumberOfClients {
+		p.Updates <- "numberofclients\t" + strconv.Itoa(newInfo.NumberOfClients)
 	}
 
-	if newInfo.MaxNumberOfClients != p.oldInfo.MaxNumberOfClients {
-		p.updates <- "maxnumberofclients\t" + strconv.Itoa(newInfo.MaxNumberOfClients)
+	if newInfo.MaxNumberOfClients != p.OldInfo.MaxNumberOfClients {
+		p.Updates <- "maxnumberofclients\t" + strconv.Itoa(newInfo.MaxNumberOfClients)
 	}
 
-	if newInfo.Map != p.oldInfo.Map {
-		p.updates <- "map\t" + newInfo.Map
+	if newInfo.Map != p.OldInfo.Map {
+		p.Updates <- "map\t" + newInfo.Map
 	}
 
-	if newInfo.MasterMode != p.oldInfo.MasterMode {
-		p.updates <- "mastermode\t" + newInfo.MasterMode
+	if newInfo.MasterMode != p.OldInfo.MasterMode {
+		p.Updates <- "mastermode\t" + newInfo.MasterMode
 	}
 
-	if newInfo.GameMode != p.oldInfo.GameMode {
-		p.updates <- "gamemode\t" + newInfo.GameMode
+	if newInfo.GameMode != p.OldInfo.GameMode {
+		p.Updates <- "gamemode\t" + newInfo.GameMode
 	}
 
-	if newInfo.Description != p.oldInfo.Description {
-		p.updates <- "description\t" + newInfo.Description
+	if newInfo.Description != p.OldInfo.Description {
+		p.Updates <- "description\t" + newInfo.Description
 	}
 }
