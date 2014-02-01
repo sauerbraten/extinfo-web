@@ -140,7 +140,7 @@
 			sock.onopen = function(e) {
 				console.log(" - socket opened - ");
 				sock.send(newaddr + ":" + newport);
-				console.log("sent:    ", newaddr + "\t" + newport);
+				console.log("sent:    ", newaddr + ":" + newport);
 			};
 
 			addr = newaddr;
