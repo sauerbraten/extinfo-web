@@ -35,7 +35,9 @@ td[id$='description'] {
 }
 
 td:focus {
-	outline: 2px auto #fac92a;
+	background: rgba(0,0,0,.1);
+	outline: none;
+	box-shadow: inset 0px 0px 2px 0px rgba(255, 255, 255, 0.5);
 }
 
 td::selection, td > span::selection {
