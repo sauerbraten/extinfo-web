@@ -2,7 +2,6 @@ package main
 
 import (
 	"code.google.com/p/go.net/websocket"
-	"io"
 	"log"
 	"net"
 	"sync"
@@ -20,14 +19,10 @@ func (c *Connection) readUntilClose(wg sync.WaitGroup) {
 	for {
 		// receive message
 		if err := websocket.Message.Receive(c.Websocket, &message); err != nil {
-			if err == io.EOF {
-				// expected; client closed the connection
-				c.Unregister <- c
-				break
-			} else {
-				log.Println(err)
-				continue
-			}
+			// client closed the connection
+			log.Println("forcing unregister", err)
+			c.Unregister <- c
+			break
 		}
 		c.processMessage(message)
 	}
@@ -87,9 +82,9 @@ func (c *Connection) processMessage(message string) {
 // reads messages from the channel and writes them to the websocket
 func (c *Connection) writeUntilClose(wg sync.WaitGroup) {
 	for message := range c.OutboundMessages {
-		err := websocket.Message.Send(c.Websocket, message)
-		if err != nil {
-			log.Println("sending:", err)
+		if err := websocket.Message.Send(c.Websocket, message); err != nil {
+			log.Println("forcing unregister:", err)
+			c.Unregister <- c
 			break
 		}
 	}

@@ -45,16 +45,24 @@ func (h *Hub) run() {
 
 		case conn := <-h.Unregister:
 			delete(h.Connections, conn)
-			close(conn.OutboundMessages)
+			log.Println("connections of", h.Address.String(), ":", h.Connections)
 			log.Println("websocket unregistered from hub", h.Address.String())
+
+			log.Println("len of connections:", len(h.Connections))
 
 			// if no subscriber left
 			if len(h.Connections) == 0 {
 				// end poller
 				h.Poller.Quit <- true
 
+				log.Println("hubs:", hubs)
+
+				log.Println("deleting hub")
+
 				// remove hub
 				delete(hubs, h.Address.String())
+
+				log.Println("hubs:", hubs)
 
 				// end goroutine
 				return

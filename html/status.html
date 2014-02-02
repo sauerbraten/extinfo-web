@@ -11,33 +11,35 @@
 	<h1>
 		status // <a href="/">extinfo-web</a>
 	</h1>
-	<table>
-		<thead>
-			<tr>
-				<td>Host</td>
-				<td>IP</td>
-				<td>Port</td>
-				<td>Connections</td>
-			</tr>
-		</thead>
-		<tbody>
-			{{range .}}
+	{{if len .}}
+		<table>
+			<thead>
 				<tr>
-					<td>{{.Hostname}}</td>
-					<td>{{.Address.IP}}</td>
-					<td>{{.Address.Port}}</td>
-					<td class="count">{{len .Connections}}</td>
+					<td>Host</td>
+					<td>IP</td>
+					<td>Port</td>
+					<td>Connections</td>
 				</tr>
-			{{end}}
-		</tbody>
-	</table>
-
-	<p>notes</p>
+			</thead>
+			<tbody>
+				{{range .}}
+					<tr>
+						<td>{{.Hostname}}</td>
+						<td>{{.Address.IP}}</td>
+						<td>{{.Address.Port}}</td>
+						<td class="count">{{len .Connections}}</td>
+					</tr>
+				{{end}}
+			</tbody>
+		</table>
+	{{else}}
+		<p>
+			no connections at the moment
+		</p>
+	{{end}}
+	<p>note</p>
 	<small>
-		<ul>
-			<li>this page has no live updates</li>
-			<li>hubs with 0 connections disappear within 30 seconds at the latest</li>
-		</ul>
+		this page has no live updates
 	</small>
 </body>
 </html>
