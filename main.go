@@ -4,6 +4,7 @@ import (
 	"code.google.com/p/go.net/websocket"
 	"log"
 	"net/http"
+	"os"
 	"text/template"
 )
 
@@ -57,7 +58,13 @@ func main() {
 
 	http.Handle("/ws", websocket.Handler(websocketHandler))
 
-	if err := http.ListenAndServe(":1234", nil); err != nil {
+	// start listening
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "1234"
+	}
+
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
 }
