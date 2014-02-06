@@ -7,27 +7,26 @@ import (
 )
 
 type Hub struct {
-	Connections map[*Connection]bool // registered connections
+	Subscribers map[*Viewer]bool // registered viewers
 	Poller      *Poller
-	//Updates     chan string      // updates to send to subscribers
-	//Quit        chan bool        // channel for hub and poller to notify each other to stop
-	Register   chan *Connection // register requests from connections
-	Unregister chan *Connection // unregister requests from connections
-	Address    *net.UDPAddr     // address of the game server this hub is for
-	Hostname   string           // the game server's hostname
+	Register    chan *Viewer // register requests from viewers
+	Unregister  chan *Viewer // unregister requests from viewers
+	Address     *net.UDPAddr // address of the game server this hub is for
+	Hostname    string       // the game server's hostname
 }
 
 func newHubWithPoller(addr *net.UDPAddr, hostname string) (h *Hub, err error) {
-	poller, err := newPoller(addr)
+	var poller *Poller
+	poller, err = newPoller(addr)
 	if err != nil {
 		return
 	}
 
 	h = &Hub{
-		Connections: map[*Connection]bool{},
+		Subscribers: map[*Viewer]bool{},
 		Poller:      poller,
-		Register:    make(chan *Connection),
-		Unregister:  make(chan *Connection),
+		Register:    make(chan *Viewer),
+		Unregister:  make(chan *Viewer),
 		Address:     addr,
 		Hostname:    hostname,
 	}
@@ -39,64 +38,35 @@ func (h *Hub) run() {
 	go h.Poller.pollForever()
 	for {
 		select {
-		case conn := <-h.Register:
-			h.Connections[conn] = true
-			log.Println("websocket registered at hub", h.Address.String())
+		case viewer := <-h.Register:
+			h.Subscribers[viewer] = true
+			log.Println("viewer", viewer.Websocket.RemoteAddr().String(), "registered at hub", h.Address.String())
 
-		case conn := <-h.Unregister:
-			delete(h.Connections, conn)
-			log.Println("connections of", h.Address.String(), ":", h.Connections)
-			log.Println("websocket unregistered from hub", h.Address.String())
-
-			log.Println("len of connections:", len(h.Connections))
+		case viewer := <-h.Unregister:
+			delete(h.Subscribers, viewer)
+			log.Println("viewer", viewer.Websocket.RemoteAddr().String(), "unregistered from hub", h.Address.String())
 
 			// if no subscriber left
-			if len(h.Connections) == 0 {
+			if len(h.Subscribers) == 0 {
 				// end poller
 				h.Poller.Quit <- true
-
-				log.Println("hubs:", hubs)
-
-				log.Println("deleting hub")
-
 				// remove hub
 				delete(hubs, h.Address.String())
-
-				log.Println("hubs:", hubs)
-
 				// end goroutine
 				return
 			}
 
-		case message := <-h.Poller.BasicUpdates:
+		case message := <-h.Poller.Updates:
 			// concurrently send message to all subscribers with a 5 second timeout
-			for conn := range h.Connections {
-				go func(conn *Connection, message string) {
+			for viewer := range h.Subscribers {
+				go func(viewer *Viewer, message string) {
 					select {
-					case conn.OutboundBasicUpdates <- message:
+					case viewer.OutboundMessages <- message:
 					case <-time.After(5 * time.Second):
 						log.Println("forcing unregister")
-						h.Unregister <- conn
+						h.Unregister <- viewer
 					}
-				}(conn, message)
-			}
-
-		case message := <-h.Poller.ExtendedUpdates:
-			for conn := range h.Connections {
-				// exclude viewers which only want basic updates
-				if conn.OutboundExtendedUpdates == nil {
-					continue
-				}
-
-				// concurrently send message with a 5 second timeout
-				go func(conn *Connection, message string) {
-					select {
-					case conn.OutboundExtendedUpdates <- message:
-					case <-time.After(5 * time.Second):
-						log.Println("forcing unregister")
-						h.Unregister <- conn
-					}
-				}(conn, message)
+				}(viewer, message)
 			}
 		}
 	}

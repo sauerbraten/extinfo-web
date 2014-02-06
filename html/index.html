@@ -3,60 +3,60 @@
 <head>
 	<title>monitor // extinfo-web</title>
 	<script src="http://use.edgefonts.net/open-sans.js"></script>
+	<script src="/extinfo.js"></script>
 	<link rel="stylesheet" href="/style_full.css">
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 
-<body onload="init();" spellcheck="false">
+<body onload="init('{{.}}');" spellcheck="false">
 	<h1 id="heading">
-		&nbsp;
+		extinfo-web
 	</h1>
-	<div class="table" id="table">
-		<div class="table-header">
-			<div class="table-row">
-				<p class="table-cell">
-					Address
-				</p>
-				<p class="table-cell" id="addr" contenteditable spellcheck="false" onblur="updatesocket();">
+	<table id="table">
+		<thead>
+			<tr>
+				<td>Address</td>
+				<td id="addr" contenteditable spellcheck="false" onblur="updatesocket();">
 					sauerleague.org
-				</p>
-			</div>
-			<div class="table-row">
-				<p class="table-cell">
-					Port
-				</p>
-				<p class="table-cell" id="port" contenteditable spellcheck="false" onblur="updatesocket();">
+				</td>
+			</tr>
+			<tr>
+				<td>Port</td>
+				<td id="port" contenteditable spellcheck="false" onblur="updatesocket();">
 					10000
-				</p>
-			</div>
-		</div>
-		<div class="table-body">
-			<div class="table-row">
-				<p class="table-cell">Game Mode</p>
-				<p class="table-cell" id="gamemode"></p>
-			</div>
-			<div class="table-row">
-				<p class="table-cell">Map</p>
-				<p class="table-cell" id="map"></p>
-			</div>
-			<div class="table-row">
-				<p class="table-cell">Clients</p>
-				<p class="table-cell"><span id="numberofclients"></span>/<span id="maxnumberofclients"></span></p>
-			</div>
-			<div class="table-row">
-				<p class="table-cell">Master Mode</p>
-				<p class="table-cell" id="mastermode"></p>
-			</div>
-			<div class="table-row">
-				<p class="table-cell">Time Left</p>
-				<p class="table-cell" id="timeleft"></p>
-			</div>
-		</div>
-	</div>
+				</td>
+			</tr>
+		</thead>
+		<tbody>
+			<tr>
+				<td id="description" colspan="2">&nbsp;</td>
+			</tr>
+			<tr>
+				<td>Game Mode</td>
+				<td id="gamemode"></td>
+			</tr>
+			<tr>
+				<td>Map</td>
+				<td id="map"></td>
+			</tr>
+			<tr>
+				<td>Clients</td>
+				<td><span id="numberofclients"></span><span id="maxnumberofclients"></span></td>
+			</tr>
+			<tr>
+				<td>Master Mode</td>
+				<td id="mastermode"></td>
+			</tr>
+			<tr>
+				<td>Time Left</td>
+				<td id="timeleft"></td>
+			</tr>
+		</tbody>
+	</table>
 
 	<p>what</p>
 	<small>
-		this is a live monitor for any <a href="http://sauerbraten.org" target="_blank">sauerbraten</a> server
+		this is a live monitor for any <a href="//sauerbraten.org" target="_blank">sauerbraten</a> server
 	</small>
 
 	<p>how</p>
@@ -66,7 +66,7 @@
 
 	<p>embed</p>
 	<small>
-		you can embed this on your website using the <code>embed.js</code> file; an example is <a href="/demo" target="_blank">here</a>
+		you can embed this on your website using the <code>embed.js</code> file; an example is <a href="/embedding-demo" target="_blank">here</a>
 	</small>
 
 	<p>about</p>
@@ -74,11 +74,11 @@
 		<ul>
 			<li>update interval is 5 seconds</li>
 			<li>backend written in <a href="http://golang.org" target="_blank">go</a></li>
-			<li>code is <a href="http://github.com/sauerbraten/extinfo-web" target="_blank">here</a></li>
-			<li>uses the <a href="https://github.com/sauerbraten/extinfo" target="_blank">extinfo package</a></li>
+			<li>code is <a href="//github.com/sauerbraten/extinfo-web" target="_blank">here</a></li>
+			<li>uses the <a href="//github.com/sauerbraten/extinfo" target="_blank">extinfo package</a></li>
 			<li>websockets → no page refreshs, no ajax requests</li>
 			<li>the <a href="/status" target="_blank">status page</a> lists how many viewers are subscribed to each server</li>
-			<li>1 poller per server</li>
+			<li>one poller per server</li>
 			<li>hubs broadcast changes at one server to all viewers subscribed to that server</li>
 		</ul>
 	</small>
@@ -87,98 +87,5 @@
 	<small>
 		pix
 	</small>
-
-	<script>
-		var $ = function (id) {
-			return document.getElementById(id);
-		};
-
-		var sock;
-		var addr = "";
-		var port = "";
-
-		function updatesocket() {
-			var newaddr = $("addr").innerHTML.trim().replace(/<br ?\/?>/, "");
-			var newport = $("port").innerHTML.trim().replace(/<br ?\/?>/, "");
-
-			if (newaddr == addr && newport == port) {
-				return;
-			}
-
-			if (typeof(sock) != "undefined") {
-				sock.close();
-				sock = null;
-			}
-
-			sock = new WebSocket("ws://{{.}}/ws/basic");
-
-			sock.onclose = function(e) {
-				console.log(" - socket closed - ");
-			};
-
-			sock.onmessage = function(m) {
-				console.log("received:", m.data);
-				var parts = m.data.split("\t");
-
-				var field = parts[0];
-				var value = parts[1].replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-				switch (field) {
-				case "description":
-					document.title = value + " // extinfo-web";
-					$("heading").innerHTML = "<a href='/detailed#" + newaddr + ":" + newport + "'>" + value + "</a>";
-					return;
-
-				case "timeleft":
-					if (value == 0) {
-						value = "intermission";
-						break;
-					}
-
-					var minutes = Math.floor(value/60);
-					var seconds = value % 60;
-					value = (minutes < 10 ? '0' : '') + minutes + ":" + (seconds < 10 ? '0' : '') + seconds + " minutes";
-					break;
-				}
-
-				$(field).innerHTML = value;
-			};
-
-			sock.onopen = function(e) {
-				console.log(" - socket opened - ");
-				sock.send(newaddr + ":" + newport);
-				console.log("sent:    ", newaddr + ":" + newport);
-			};
-
-			addr = newaddr;
-			port = newport;
-			window.location.hash = "#" + addr + ":" + port;
-		}
-
-		function init() {
-			if (!('WebSocket' in window)) {
-				var error = document.createElement("div");
-				error.className = "error";
-
-				var message = document.createElement("p");
-				message.innerHTML = "sorry, but your browser does not support websockets";
-				error.appendChild(message);
-
-				var tip = document.createElement("small");
-				tip.innerHTML = "try updating your browser";
-				error.appendChild(tip);
-
-				$("table").parentNode.replaceChild(error, $("table"));
-				return;
-			}
-
-			if (window.location.hash.substring(1).match(/[a-zA-Z0-9\\.]+:[0-9]+/)) {
-				var parts = window.location.hash.substring(1).split(':');
-				$("addr").innerHTML = parts[0];
-				$("port").innerHTML = parts[1];
-			}
-			updatesocket();
-		}
-	</script>
 </body>
 </html>

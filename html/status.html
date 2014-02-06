@@ -18,7 +18,7 @@
 					<td>Host</td>
 					<td>IP</td>
 					<td>Port</td>
-					<td>Connections</td>
+					<td>Subscribers</td>
 				</tr>
 			</thead>
 			<tbody>
@@ -27,7 +27,7 @@
 						<td>{{.Hostname}}</td>
 						<td>{{.Address.IP}}</td>
 						<td>{{.Address.Port}}</td>
-						<td class="count">{{len .Connections}}</td>
+						<td class="count">{{len .Subscribers}}</td>
 					</tr>
 				{{end}}
 			</tbody>

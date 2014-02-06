@@ -9,12 +9,8 @@ import (
 
 var hubs = map[string]*Hub{}
 
-func basic(resp http.ResponseWriter, req *http.Request) {
+func home(resp http.ResponseWriter, req *http.Request) {
 	template.Must(template.ParseFiles("html/index.html")).Execute(resp, req.Host)
-}
-
-func detailed(resp http.ResponseWriter, req *http.Request) {
-	template.Must(template.ParseFiles("html/detailed.html")).Execute(resp, req.Host)
 }
 
 func status(resp http.ResponseWriter, req *http.Request) {
@@ -33,10 +29,6 @@ func embedJS(resp http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	id := req.FormValue("id")
-	addr := req.FormValue("addr")
-	port := req.FormValue("port")
-
 	template.Must(template.ParseFiles("js/embed.js")).Execute(resp, struct {
 		Host string
 		Addr string
@@ -44,9 +36,9 @@ func embedJS(resp http.ResponseWriter, req *http.Request) {
 		Id   string
 	}{
 		req.Host,
-		addr,
-		port,
-		id,
+		req.FormValue("addr"),
+		req.FormValue("port"),
+		req.FormValue("id"),
 	})
 }
 
@@ -54,18 +46,15 @@ func main() {
 	http.Handle("/style.css", http.FileServer(http.Dir("css")))
 	http.Handle("/style_full.css", http.FileServer(http.Dir("css")))
 
-	http.HandleFunc("/", basic)
-	http.HandleFunc("/detailed", detailed)
+	http.HandleFunc("/", home)
 	http.Handle("/extinfo.js", http.FileServer(http.Dir("js")))
-
 	http.HandleFunc("/status", status)
-
-	http.HandleFunc("/demo", demo)
+	http.HandleFunc("/embedding-demo", demo)
 	http.HandleFunc("/embed.js", embedJS)
 
-	http.Handle("/ws/basic", websocket.Handler(basicUpdatesWSHandler))
-	http.Handle("/ws/extended", websocket.Handler(extendedUpdatesWSHandler))
+	http.Handle("/ws", websocket.Handler(websocketHandler))
 
+	log.Println("server listening on 0.0.0.:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
