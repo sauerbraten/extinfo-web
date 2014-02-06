@@ -9,9 +9,24 @@ import (
 
 // A connection from a viewer
 type Connection struct {
-	Websocket        *websocket.Conn  // the websocket connection
-	OutboundMessages chan string      // buffered channel of outbound messages
-	Unregister       chan *Connection // unregister channel of the hub this connection is subsribed to, to handle client closing connection
+	Websocket               *websocket.Conn  // the websocket connection
+	OutboundBasicUpdates    chan string      // buffered channel of outbound basic update messages; closing this channel makes the WS connection close, too
+	OutboundExtendedUpdates chan string      // buffered channel of outbound extended update messages
+	Unregister              chan *Connection // unregister channel of the hub this connection is subsribed to, to handle client closing connection
+}
+
+func newBasicConnection(ws *websocket.Conn) *Connection {
+	return &Connection{
+		Websocket:               ws,
+		OutboundBasicUpdates:    make(chan string),
+		OutboundExtendedUpdates: nil,
+	}
+}
+
+func newExtendedConnection(ws *websocket.Conn) *Connection {
+	c := newBasicConnection(ws)
+	c.OutboundExtendedUpdates = make(chan string)
+	return c
 }
 
 func (c *Connection) readUntilClose(wg sync.WaitGroup) {
@@ -35,7 +50,7 @@ func (c *Connection) processMessage(message string) {
 	addr, err := net.ResolveUDPAddr("udp4", message)
 	if err != nil {
 		log.Println(err)
-		close(c.OutboundMessages)
+		close(c.OutboundBasicUpdates)
 		return
 	}
 
@@ -46,7 +61,7 @@ func (c *Connection) processMessage(message string) {
 		names, err := net.LookupAddr(addr.IP.String())
 		if err != nil {
 			log.Println(err)
-			close(c.OutboundMessages)
+			close(c.OutboundBasicUpdates)
 			return
 		}
 
@@ -63,7 +78,7 @@ func (c *Connection) processMessage(message string) {
 		h, err = newHubWithPoller(addr, hostname)
 		if err != nil {
 			log.Println(err)
-			close(c.OutboundMessages)
+			close(c.OutboundBasicUpdates)
 			return
 		}
 
@@ -76,32 +91,52 @@ func (c *Connection) processMessage(message string) {
 
 	c.Unregister = h.Unregister
 	h.Register <- c
-	h.Poller.getAllOnce()
+	h.Poller.getAllInfoOnce()
 }
 
-// reads messages from the channel and writes them to the websocket
-func (c *Connection) writeUntilClose(wg sync.WaitGroup) {
-	for message := range c.OutboundMessages {
-		if err := websocket.Message.Send(c.Websocket, message); err != nil {
-			log.Println("forcing unregister:", err)
-			c.Unregister <- c
-			break
+// reads messages from the two update channels and writes them to the websocket
+func (c *Connection) writeUpdatesUntilClose(wg sync.WaitGroup) {
+	var err error
+	for {
+		select {
+		case message, ok := <-c.OutboundBasicUpdates:
+			if ok {
+				err = websocket.Message.Send(c.Websocket, message)
+			}
+			if !ok || err != nil {
+				log.Println("forcing unregister:", err)
+				c.Unregister <- c
+				break
+			}
+
+		case message, ok := <-c.OutboundExtendedUpdates:
+			if ok {
+				err = websocket.Message.Send(c.Websocket, message)
+			}
+			if !ok || err != nil {
+				log.Println("forcing unregister:", err)
+				c.Unregister <- c
+				break
+			}
 		}
 	}
 	wg.Done()
 }
 
 // registers websockets
-func websocketHandler(ws *websocket.Conn) {
-	c := &Connection{
-		Websocket:        ws,
-		OutboundMessages: make(chan string),
-	}
+func basicUpdatesWSHandler(ws *websocket.Conn) {
+	registerViewer(newBasicConnection(ws))
+}
 
+func extendedUpdatesWSHandler(ws *websocket.Conn) {
+	registerViewer(newExtendedConnection(ws))
+}
+
+func registerViewer(c *Connection) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 
-	go c.writeUntilClose(wg)
+	go c.writeUpdatesUntilClose(wg)
 	go c.readUntilClose(wg)
 
 	wg.Wait()

@@ -3,51 +3,56 @@
 <head>
 	<title>monitor // extinfo-web</title>
 	<script src="http://use.edgefonts.net/open-sans.js"></script>
-	<link rel="stylesheet" href="/style.css">
+	<link rel="stylesheet" href="/style_full.css">
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 
 <body onload="init();" spellcheck="false">
 	<h1 id="heading">
-		extinfo-web
+		&nbsp;
 	</h1>
-	<table id="table">
-		<thead>
-			<tr>
-				<td>Address</td>
-				<td id="addr" contenteditable spellcheck="false" onblur="updatesocket();">sauerleague.org</td>
-			</tr>
-			<tr>
-				<td>Port</td>
-				<td id="port" contenteditable spellcheck="false" onblur="updatesocket();">10000</td>
-			</tr>
-		</thead>
-		<tbody>
-			<tr>
-				<td id="description" colspan="2">&nbsp;</td>
-			</tr>
-			<tr>
-				<td>Game Mode</td>
-				<td id="gamemode"></td>
-			</tr>
-			<tr>
-				<td>Map</td>
-				<td id="map"></td>
-			</tr>
-			<tr>
-				<td>Clients</td>
-				<td><span id="numberofclients"></span>/<span id="maxnumberofclients"></span></td>
-			</tr>
-			<tr>
-				<td>Master Mode</td>
-				<td id="mastermode"></td>
-			</tr>
-			<tr>
-				<td>Time Left</td>
-				<td id="timeleft"></td>
-			</tr>
-		</tbody>
-	</table>
+	<div class="table" id="table">
+		<div class="table-header">
+			<div class="table-row">
+				<p class="table-cell">
+					Address
+				</p>
+				<p class="table-cell" id="addr" contenteditable spellcheck="false" onblur="updatesocket();">
+					sauerleague.org
+				</p>
+			</div>
+			<div class="table-row">
+				<p class="table-cell">
+					Port
+				</p>
+				<p class="table-cell" id="port" contenteditable spellcheck="false" onblur="updatesocket();">
+					10000
+				</p>
+			</div>
+		</div>
+		<div class="table-body">
+			<div class="table-row">
+				<p class="table-cell">Game Mode</p>
+				<p class="table-cell" id="gamemode"></p>
+			</div>
+			<div class="table-row">
+				<p class="table-cell">Map</p>
+				<p class="table-cell" id="map"></p>
+			</div>
+			<div class="table-row">
+				<p class="table-cell">Clients</p>
+				<p class="table-cell"><span id="numberofclients"></span>/<span id="maxnumberofclients"></span></p>
+			</div>
+			<div class="table-row">
+				<p class="table-cell">Master Mode</p>
+				<p class="table-cell" id="mastermode"></p>
+			</div>
+			<div class="table-row">
+				<p class="table-cell">Time Left</p>
+				<p class="table-cell" id="timeleft"></p>
+			</div>
+		</div>
+	</div>
 
 	<p>what</p>
 	<small>
@@ -93,8 +98,8 @@
 		var port = "";
 
 		function updatesocket() {
-			var newaddr = $("addr").innerHTML.replace(/<br ?\/?>/, "");
-			var newport = $("port").innerHTML.replace(/<br ?\/?>/, "");
+			var newaddr = $("addr").innerHTML.trim().replace(/<br ?\/?>/, "");
+			var newport = $("port").innerHTML.trim().replace(/<br ?\/?>/, "");
 
 			if (newaddr == addr && newport == port) {
 				return;
@@ -105,7 +110,7 @@
 				sock = null;
 			}
 
-			sock = new WebSocket("ws://{{.}}/ws");
+			sock = new WebSocket("ws://{{.}}/ws/basic");
 
 			sock.onclose = function(e) {
 				console.log(" - socket closed - ");
@@ -119,19 +124,21 @@
 				var value = parts[1].replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 				switch (field) {
-					case "description":
-						document.title = value + " // extinfo-web";
-						break;
-					case "timeleft":
-						if (value == 0) {
-							value = "intermission";
-							break;
-						}
+				case "description":
+					document.title = value + " // extinfo-web";
+					$("heading").innerHTML = "<a href='/detailed#" + newaddr + ":" + newport + "'>" + value + "</a>";
+					return;
 
-						var minutes = Math.floor(value/60);
-						var seconds = value % 60;
-						value = (minutes < 10 ? '0' : '') + minutes + ":" + (seconds < 10 ? '0' : '') + seconds + " minutes";
+				case "timeleft":
+					if (value == 0) {
+						value = "intermission";
 						break;
+					}
+
+					var minutes = Math.floor(value/60);
+					var seconds = value % 60;
+					value = (minutes < 10 ? '0' : '') + minutes + ":" + (seconds < 10 ? '0' : '') + seconds + " minutes";
+					break;
 				}
 
 				$(field).innerHTML = value;
@@ -145,8 +152,6 @@
 
 			addr = newaddr;
 			port = newport;
-			setTimeout(function() {document.title = $("description").innerHTML + " // extinfo-web"}, 500);
-			setTimeout(function() {$("heading").innerHTML = $("description").innerHTML + " // extinfo-web"}, 500);
 			window.location.hash = "#" + addr + ":" + port;
 		}
 

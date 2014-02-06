@@ -7,40 +7,55 @@ body {
 	padding: 1em;
 }
 
-table {
+.table {
+	display: table;
 	border-collapse: collapse;
 	box-shadow: 0px 0px 10px 2px rgba(0, 0, 0, .25);
 	color: white;
 }
 
-thead > tr, thead > tr:nth-child(odd) {
+.table p {
+	margin: 0;
+}
+
+.table-header {
+	display: table-header-group;
+}
+
+.table-body {
+	display: table-row-group;
+}
+
+.table-row {
+	display: table-row;
+	background: #292929;
+}
+
+.table-row:nth-child(odd) {
+	background: #323232;
+}
+
+.table-header .table-row {
 	background: #2564a2;
 }
 
-tr {
-	background: #1c1c1c;
-}
-
-tr:nth-child(odd) {
-	background: #272727;
-}
-
-td {
+.table-cell {
+	display: table-cell;
 	padding: 0.4em 0.5em;
 }
 
-td[id$='description'] {
+.table-cell[id$='description'] {
 	text-align: center;
 	font-weight: bold;
 }
 
-td:focus {
+.table-cell:focus {
 	background: rgba(0,0,0,.1);
 	outline: none;
 	box-shadow: inset 0px 0px 2px 0px rgba(255, 255, 255, 0.5);
 }
 
-td::selection, td > span::selection {
+.table-cell::selection, .table-cell > span::selection {
 	background: #fac92a;
 }
 
@@ -92,3 +107,47 @@ pre {
 .error {
 	color: #a22525;
 }
+
+/* detailed view only */
+
+.full-width {
+	width: 100%;
+}
+
+.fixed-width-cells {
+	table-layout: fixed;
+}
+
+.inner-table {
+	box-shadow: none;
+	min-width: 33%;
+	background: #1c1c1c;
+}
+
+.inner-table .table-header .table-row {
+	background: #1c1c1c;
+}
+
+.grey-text {
+	color: #aaaaaa;
+}
+
+.dark {
+	background: #1c1c1c;
+}
+
+.centered {
+	text-align: center;
+}
+
+.right {
+	text-align: right;
+}
+
+.thin-padding {
+	padding: .25em .25em .25em 0em;
+}
+
+.thin-padding:first-child {
+	padding-left: .25em;
+]

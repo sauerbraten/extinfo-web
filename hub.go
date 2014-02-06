@@ -68,12 +68,30 @@ func (h *Hub) run() {
 				return
 			}
 
-		case message := <-h.Poller.Updates:
+		case message := <-h.Poller.BasicUpdates:
 			// concurrently send message to all subscribers with a 5 second timeout
 			for conn := range h.Connections {
 				go func(conn *Connection, message string) {
 					select {
-					case conn.OutboundMessages <- message:
+					case conn.OutboundBasicUpdates <- message:
+					case <-time.After(5 * time.Second):
+						log.Println("forcing unregister")
+						h.Unregister <- conn
+					}
+				}(conn, message)
+			}
+
+		case message := <-h.Poller.ExtendedUpdates:
+			for conn := range h.Connections {
+				// exclude viewers which only want basic updates
+				if conn.OutboundExtendedUpdates == nil {
+					continue
+				}
+
+				// concurrently send message with a 5 second timeout
+				go func(conn *Connection, message string) {
+					select {
+					case conn.OutboundExtendedUpdates <- message:
 					case <-time.After(5 * time.Second):
 						log.Println("forcing unregister")
 						h.Unregister <- conn
