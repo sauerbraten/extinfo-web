@@ -71,8 +71,6 @@ func (v *Viewer) processMessage(message string) error {
 			return err
 		}
 
-		log.Println(newHub)
-
 		hubs[addr.String()] = newHub
 		h = newHub
 

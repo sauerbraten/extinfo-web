@@ -48,10 +48,15 @@ func (h *Hub) run() {
 
 			// if no subscriber left
 			if len(h.Subscribers) == 0 {
-				// end poller
+				// stop poller
+				log.Println("stopping poller")
 				h.Poller.Quit <- true
+
 				// remove hub
 				delete(hubs, h.Address.String())
+
+				log.Println("terminated hub")
+
 				// end goroutine
 				return
 			}

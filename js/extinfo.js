@@ -24,6 +24,14 @@ function updatesocket() {
 
 	sock = new WebSocket("ws://"+host+"/ws");
 
+	sock.onopen = function(e) {
+		clearTable();
+		$("description").innerHTML = "connecting...";
+		console.log(" - socket opened - ");
+		sock.send(newaddr + ":" + newport);
+		console.log("sent:    ", newaddr + ":" + newport);
+	};
+
 	sock.onclose = function(e) {
 		console.log(" - socket closed - ");
 	};
@@ -66,14 +74,6 @@ function updatesocket() {
 		}
 
 		$(field).innerHTML = value;
-	};
-
-	sock.onopen = function(e) {
-		clearTable();
-		$("description").innerHTML = "connecting...";
-		console.log(" - socket opened - ");
-		sock.send(newaddr + ":" + newport);
-		console.log("sent:    ", newaddr + ":" + newport);
 	};
 
 	addr = newaddr;
