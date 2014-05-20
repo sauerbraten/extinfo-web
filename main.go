@@ -16,7 +16,7 @@ var upgrader = websocket.Upgrader{
 }
 
 func home(resp http.ResponseWriter, req *http.Request) {
-	template.Must(template.ParseFiles("html/index.html")).Execute(resp, req.Host)
+	template.Must(template.ParseFiles("html/index.html")).Execute(resp, nil)
 }
 
 func status(resp http.ResponseWriter, req *http.Request) {
