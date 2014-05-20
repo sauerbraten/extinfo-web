@@ -40,22 +40,22 @@ func (h *Hub) run() {
 		select {
 		case viewer := <-h.Register:
 			h.Subscribers[viewer] = true
-			log.Println("viewer", viewer.Websocket.RemoteAddr().String(), "registered at hub", h.Address.String())
+			log.Println("viewer", viewer.Websocket.RemoteAddr(), "registered at hub", h.Address.String())
 
 		case viewer := <-h.Unregister:
 			delete(h.Subscribers, viewer)
-			log.Println("viewer", viewer.Websocket.RemoteAddr().String(), "unregistered from hub", h.Address.String())
+			log.Println("viewer", viewer.Websocket.RemoteAddr(), "unregistered from hub", h.Address.String())
 
 			// if no subscriber left
 			if len(h.Subscribers) == 0 {
 				// stop poller
-				log.Println("stopping poller")
+				log.Println("stopping poller & hub")
 				h.Poller.Quit <- true
 
 				// remove hub
 				delete(hubs, h.Address.String())
 
-				log.Println("terminated hub")
+				log.Println("stopped poller & hub")
 
 				// end goroutine
 				return

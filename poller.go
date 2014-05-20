@@ -16,7 +16,7 @@ type Poller struct {
 }
 
 func newPoller(addr *net.UDPAddr) (*Poller, error) {
-	server := extinfo.NewServer(addr, 2*time.Second)
+	server := extinfo.NewServer(addr, 5*time.Second)
 	info, err := server.GetBasicInfo()
 	return &Poller{
 		Quit:    make(chan bool),

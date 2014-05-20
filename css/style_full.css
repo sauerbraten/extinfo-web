@@ -81,6 +81,11 @@ pre {
 	tab-size: 4;
 }
 
+code {
+	background: #eee;
+	padding: .2em;
+}
+
 #extinfo-demo table {
 	margin: 1.5em auto;
 }

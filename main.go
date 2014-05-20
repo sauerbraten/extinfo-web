@@ -1,13 +1,19 @@
 package main
 
 import (
-	"code.google.com/p/go.net/websocket"
+	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+	"sync"
 	"text/template"
 )
 
 var hubs = map[string]*Hub{}
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 func home(resp http.ResponseWriter, req *http.Request) {
 	template.Must(template.ParseFiles("html/index.html")).Execute(resp, req.Host)
@@ -42,6 +48,29 @@ func embedJS(resp http.ResponseWriter, req *http.Request) {
 	})
 }
 
+// registers websockets
+func websocketHandler(resp http.ResponseWriter, req *http.Request) {
+	conn, err := upgrader.Upgrade(resp, req, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	v := &Viewer{
+		Websocket:        conn,
+		OutboundMessages: make(chan string),
+	}
+
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+
+	go v.writeUntilClose(wg)
+	go v.readUntilClose(wg)
+
+	wg.Wait()
+	v.Websocket.Close()
+}
+
 func main() {
 	http.Handle("/style.css", http.FileServer(http.Dir("css")))
 	http.Handle("/style_full.css", http.FileServer(http.Dir("css")))
@@ -52,7 +81,7 @@ func main() {
 	http.HandleFunc("/embedding-demo", demo)
 	http.HandleFunc("/embed.js", embedJS)
 
-	http.Handle("/ws", websocket.Handler(websocketHandler))
+	http.HandleFunc("/ws", websocketHandler)
 
 	log.Println("server listening on 0.0.0.:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {

@@ -3,37 +3,36 @@ var $ = function (id) {
 };
 
 var sock;
-var addr = "";
 var port = "";
-
 var host = "";
 
 function updatesocket() {
-	var newaddr = $("addr").innerHTML.trim().replace(/<br ?\/?>/, "");
+	var newhost = $("host").innerHTML.trim().replace(/<br ?\/?>/, "");
 	var newport = $("port").innerHTML.trim().replace(/<br ?\/?>/, "");
 
-	if (newaddr == addr && newport == port) {
+	if (newhost == host && newport == port) {
 		return;
 	}
 
 	if (typeof(sock) != "undefined") {
 		sock.close();
-		console.log(" - socket closed - ");
 		sock = null;
 	}
 
-	sock = new WebSocket("ws://"+host+"/ws");
+	sock = new WebSocket("ws://"+window.location.host+"/ws");
 
 	sock.onopen = function(e) {
 		clearTable();
 		$("description").innerHTML = "connecting...";
 		console.log(" - socket opened - ");
-		sock.send(newaddr + ":" + newport);
-		console.log("sent:    ", newaddr + ":" + newport);
+		sock.send(newhost + ":" + newport);
+		console.log("    sent:", newhost + ":" + newport);
 	};
 
 	sock.onclose = function(e) {
 		console.log(" - socket closed - ");
+		document.title = "extinfo-web";
+		$("heading").innerHTML = "not connected // extinfo-web";
 	};
 
 	sock.onmessage = function(m) {
@@ -46,7 +45,7 @@ function updatesocket() {
 		switch (field) {
 		case "description":
 			document.title = value + " // extinfo-web";
-			$("heading").innerHTML = value + " // extinfo-web"
+			$("heading").innerHTML = value + " // extinfo-web";
 			break;
 
 		case "maxnumberofclients":
@@ -69,19 +68,18 @@ function updatesocket() {
 			var fixTip = parts[2].trim().replace(/</g, "&lt;").replace(/>/g, "&gt;");
 			error(errorMessage, fixTip);
 			sock.close();
-			console.log(" - socket closed - ");
 			return;
 		}
 
 		$(field).innerHTML = value;
 	};
 
-	addr = newaddr;
+	host = newhost;
 	port = newport;
-	window.location.hash = "#" + addr + ":" + port;
+	window.location.hash = "#" + host + ":" + port;
 }
 
-function init(host) {
+function init() {
 	if (!('WebSocket' in window)) {
 		error("sorry, but your browser does not support websockets", "try updating your browser");
 		return;
@@ -89,11 +87,10 @@ function init(host) {
 
 	if (window.location.hash.substring(1).match(/[a-zA-Z0-9\\.]+:[0-9]+/)) {
 		var parts = window.location.hash.substring(1).split(':');
-		$("addr").innerHTML = parts[0];
+		$("host").innerHTML = parts[0];
 		$("port").innerHTML = parts[1];
 	}
 
-	window.host = host;
 	updatesocket();
 }
 
