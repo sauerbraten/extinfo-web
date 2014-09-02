@@ -25,7 +25,7 @@ tr:nth-child(odd) {
 	background: #272727;
 }
 
-td, .error {
+td, .extinfo-error {
 	padding: 0.4em 0.5em;
 }
 
@@ -94,12 +94,12 @@ code {
 	text-align: right;
 }
 
-.error {
+.extinfo-error {
 	display: inline-block;
 	background: #a22525;
 	color: white;
 }
 
-.error p {
+.extinfo-error p {
 	margin: 0;
 }

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"github.com/gorilla/websocket"
 	"io"
 	"log"
 	"net"
-	"sync"
+
+	"github.com/gorilla/websocket"
 )
 
 // A connection from a viewer
@@ -15,7 +15,7 @@ type Viewer struct {
 	Unregister       chan *Viewer    // unregister channel of the hub this connection is subsribed to, to handle client closing connection
 }
 
-func (v *Viewer) readUntilClose(wg *sync.WaitGroup) {
+func (v *Viewer) readUntilClose() {
 	for {
 		// receive message
 		messageType, payload, err := v.Websocket.ReadMessage()
@@ -45,7 +45,6 @@ func (v *Viewer) readUntilClose(wg *sync.WaitGroup) {
 			break
 		}
 	}
-	wg.Done()
 }
 
 // Parses the message coming in from the websocket. Incoming messages are of the form "abc.com:1234" and mean that the client wants to subscribe to a server poller.
@@ -93,7 +92,7 @@ func (v *Viewer) processMessage(message string) error {
 }
 
 // reads messages from the channel and writes them to the websocket
-func (v *Viewer) writeUntilClose(wg *sync.WaitGroup) {
+func (v *Viewer) writeUntilClose() {
 	for message := range v.OutboundMessages {
 		if err := v.Websocket.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
 			log.Println("forcing unregister:", err)
@@ -101,5 +100,4 @@ func (v *Viewer) writeUntilClose(wg *sync.WaitGroup) {
 			break
 		}
 	}
-	wg.Done()
 }

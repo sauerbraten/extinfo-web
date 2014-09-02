@@ -1,11 +1,13 @@
 package main
 
 import (
-	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"sync"
 	"text/template"
+	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 var hubs = map[string]*Hub{}
@@ -62,26 +64,37 @@ func websocketHandler(resp http.ResponseWriter, req *http.Request) {
 	}
 
 	wg := &sync.WaitGroup{}
+
 	wg.Add(2)
 
-	go v.writeUntilClose(wg)
-	go v.readUntilClose(wg)
+	go func(wg *sync.WaitGroup) {
+		v.writeUntilClose()
+		wg.Done()
+	}(wg)
+
+	go func(wg *sync.WaitGroup) {
+		v.readUntilClose()
+		wg.Done()
+	}(wg)
 
 	wg.Wait()
+
+	v.Websocket.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(5*time.Second))
 	v.Websocket.Close()
 }
 
 func main() {
-	http.Handle("/style.css", http.FileServer(http.Dir("css")))
-	http.Handle("/style_full.css", http.FileServer(http.Dir("css")))
-
 	http.HandleFunc("/", home)
-	http.Handle("/extinfo.js", http.FileServer(http.Dir("js")))
 	http.HandleFunc("/status", status)
 	http.HandleFunc("/embedding-demo", demo)
 	http.HandleFunc("/embed.js", embedJS)
 
 	http.HandleFunc("/ws", websocketHandler)
+
+	http.Handle("/style.css", http.FileServer(http.Dir("css")))
+	http.Handle("/style_full.css", http.FileServer(http.Dir("css")))
+
+	http.Handle("/extinfo.js", http.FileServer(http.Dir("js")))
 
 	log.Println("server listening on 0.0.0.:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {

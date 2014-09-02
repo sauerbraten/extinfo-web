@@ -48,10 +48,6 @@ function updatesocket() {
 			$("heading").innerHTML = value + " // extinfo-web";
 			break;
 
-		case "maxnumberofclients":
-			value = "/" + value;
-			break;
-
 		case "timeleft":
 			if (value == 0) {
 				value = "intermission";
@@ -96,7 +92,7 @@ function init() {
 
 function error(errorMessage, fixTip) {
 	var error = document.createElement("div");
-	error.className = "error";
+	error.className = "extinfo-error";
 
 	var message = document.createElement("p");
 	message.innerHTML = errorMessage;
