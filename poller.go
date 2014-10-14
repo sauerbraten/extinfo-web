@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/sauerbraten/extinfo"
 	"log"
 	"net"
 	"strconv"
 	"time"
+
+	"github.com/sauerbraten/extinfo"
 )
 
 type Poller struct {
@@ -15,15 +16,27 @@ type Poller struct {
 	Server  *extinfo.Server
 }
 
-func newPoller(addr *net.UDPAddr) (*Poller, error) {
-	server := extinfo.NewServer(addr, 5*time.Second)
-	info, err := server.GetBasicInfo()
-	return &Poller{
+func newPoller(addr *net.UDPAddr) (p *Poller, err error) {
+	var server *extinfo.Server
+	server, err = extinfo.NewServer(addr.IP.String(), addr.Port, 5*time.Second)
+	if err != nil {
+		return
+	}
+
+	var info extinfo.BasicInfo
+	info, err = server.GetBasicInfo()
+	if err != nil {
+		return
+	}
+
+	p = &Poller{
 		Quit:    make(chan bool),
 		Updates: make(chan string),
 		OldInfo: info,
 		Server:  server,
-	}, err
+	}
+
+	return
 }
 
 func (p *Poller) pollForever() {
