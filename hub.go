@@ -50,7 +50,7 @@ func (h *Hub) run() {
 			if len(h.Subscribers) == 0 {
 				// stop poller
 				log.Println("stopping poller & hub")
-				h.Poller.Quit <- true
+				h.Poller.Quit <- struct{}{}
 
 				// remove hub
 				delete(hubs, h.Address.String())

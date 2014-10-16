@@ -10,10 +10,10 @@ import (
 )
 
 type Poller struct {
-	Quit    chan bool
-	Updates chan string
-	OldInfo extinfo.BasicInfo
-	Server  *extinfo.Server
+	Quit      chan struct{}
+	Updates   chan string
+	BasicInfo extinfo.BasicInfo
+	Server    *extinfo.Server
 }
 
 func newPoller(addr *net.UDPAddr) (p *Poller, err error) {
@@ -30,10 +30,10 @@ func newPoller(addr *net.UDPAddr) (p *Poller, err error) {
 	}
 
 	p = &Poller{
-		Quit:    make(chan bool),
-		Updates: make(chan string),
-		OldInfo: info,
-		Server:  server,
+		Quit:      make(chan struct{}),
+		Updates:   make(chan string),
+		BasicInfo: info,
+		Server:    server,
 	}
 
 	return
@@ -45,9 +45,7 @@ func (p *Poller) pollForever() {
 	for {
 		if errorCount > 10 {
 			log.Println("problem with server, stopping poller")
-			t.Stop()
-			<-p.Quit
-			return
+			p.Quit <- struct{}{}
 		}
 
 		select {
@@ -68,54 +66,54 @@ func (p *Poller) pollForever() {
 }
 
 func (p *Poller) poll() error {
-	newInfo, err := p.Server.GetBasicInfo()
+	newBasicInfo, err := p.Server.GetBasicInfo()
 	if err != nil {
 		log.Println("error getting basic info from server:", err)
 		return err
 	}
 
-	p.sendBasicInfoUpdates(newInfo)
+	p.sendBasicInfoUpdates(newBasicInfo)
 
-	p.OldInfo = newInfo
+	p.BasicInfo = newBasicInfo
 	return nil
 }
 
 func (p *Poller) getAllOnce() {
-	p.Updates <- "description\t" + p.OldInfo.Description
-	p.Updates <- "gamemode\t" + p.OldInfo.GameMode
-	p.Updates <- "map\t" + p.OldInfo.Map
-	p.Updates <- "numberofclients\t" + strconv.Itoa(p.OldInfo.NumberOfClients)
-	p.Updates <- "maxnumberofclients\t" + strconv.Itoa(p.OldInfo.MaxNumberOfClients)
-	p.Updates <- "mastermode\t" + p.OldInfo.MasterMode
-	p.Updates <- "timeleft\t" + strconv.Itoa(p.OldInfo.SecsLeft)
+	p.Updates <- "description\t" + p.BasicInfo.Description
+	p.Updates <- "gamemode\t" + p.BasicInfo.GameMode
+	p.Updates <- "map\t" + p.BasicInfo.Map
+	p.Updates <- "numberofclients\t" + strconv.Itoa(p.BasicInfo.NumberOfClients)
+	p.Updates <- "maxnumberofclients\t" + strconv.Itoa(p.BasicInfo.MaxNumberOfClients)
+	p.Updates <- "mastermode\t" + p.BasicInfo.MasterMode
+	p.Updates <- "timeleft\t" + strconv.Itoa(p.BasicInfo.SecsLeft)
 }
 
-func (p *Poller) sendBasicInfoUpdates(newInfo extinfo.BasicInfo) {
-	if newInfo.Description != p.OldInfo.Description {
-		p.Updates <- "description\t" + newInfo.Description
+func (p *Poller) sendBasicInfoUpdates(newBasicInfo extinfo.BasicInfo) {
+	if newBasicInfo.Description != p.BasicInfo.Description {
+		p.Updates <- "description\t" + newBasicInfo.Description
 	}
 
-	if newInfo.GameMode != p.OldInfo.GameMode {
-		p.Updates <- "gamemode\t" + newInfo.GameMode
+	if newBasicInfo.GameMode != p.BasicInfo.GameMode {
+		p.Updates <- "gamemode\t" + newBasicInfo.GameMode
 	}
 
-	if newInfo.Map != p.OldInfo.Map {
-		p.Updates <- "map\t" + newInfo.Map
+	if newBasicInfo.Map != p.BasicInfo.Map {
+		p.Updates <- "map\t" + newBasicInfo.Map
 	}
 
-	if newInfo.NumberOfClients != p.OldInfo.NumberOfClients {
-		p.Updates <- "numberofclients\t" + strconv.Itoa(newInfo.NumberOfClients)
+	if newBasicInfo.NumberOfClients != p.BasicInfo.NumberOfClients {
+		p.Updates <- "numberofclients\t" + strconv.Itoa(newBasicInfo.NumberOfClients)
 	}
 
-	if newInfo.MaxNumberOfClients != p.OldInfo.MaxNumberOfClients {
-		p.Updates <- "maxnumberofclients\t" + strconv.Itoa(newInfo.MaxNumberOfClients)
+	if newBasicInfo.MaxNumberOfClients != p.BasicInfo.MaxNumberOfClients {
+		p.Updates <- "maxnumberofclients\t" + strconv.Itoa(newBasicInfo.MaxNumberOfClients)
 	}
 
-	if newInfo.MasterMode != p.OldInfo.MasterMode {
-		p.Updates <- "mastermode\t" + newInfo.MasterMode
+	if newBasicInfo.MasterMode != p.BasicInfo.MasterMode {
+		p.Updates <- "mastermode\t" + newBasicInfo.MasterMode
 	}
 
-	if newInfo.SecsLeft != p.OldInfo.SecsLeft {
-		p.Updates <- "timeleft\t" + strconv.Itoa(newInfo.SecsLeft)
+	if newBasicInfo.SecsLeft != p.BasicInfo.SecsLeft {
+		p.Updates <- "timeleft\t" + strconv.Itoa(newBasicInfo.SecsLeft)
 	}
 }
