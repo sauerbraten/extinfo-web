@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net"
 	"strconv"
@@ -10,10 +11,12 @@ import (
 )
 
 type Poller struct {
-	Quit      chan struct{}
-	Updates   chan string
-	BasicInfo extinfo.BasicInfo
-	Server    *extinfo.Server
+	Quit        chan struct{}
+	Updates     chan string
+	BasicInfo   extinfo.BasicInfo
+	TeamScores  map[string]extinfo.TeamScore
+	ClientsInfo map[int]extinfo.ClientInfo
+	Server      *extinfo.Server
 }
 
 func newPoller(addr *net.UDPAddr) (p *Poller, err error) {
@@ -23,17 +26,31 @@ func newPoller(addr *net.UDPAddr) (p *Poller, err error) {
 		return
 	}
 
-	var info extinfo.BasicInfo
-	info, err = server.GetBasicInfo()
+	var basicInfo extinfo.BasicInfo
+	basicInfo, err = server.GetBasicInfo()
+	if err != nil {
+		return
+	}
+
+	var scoresInfo extinfo.TeamScores
+	scoresInfo, err = server.GetTeamScores()
+	if err != nil {
+		return
+	}
+
+	var clientsInfo map[int]extinfo.ClientInfo
+	clientsInfo, err = server.GetAllClientInfo()
 	if err != nil {
 		return
 	}
 
 	p = &Poller{
-		Quit:      make(chan struct{}),
-		Updates:   make(chan string),
-		BasicInfo: info,
-		Server:    server,
+		Quit:        make(chan struct{}),
+		Updates:     make(chan string),
+		BasicInfo:   basicInfo,
+		TeamScores:  scoresInfo.Scores,
+		ClientsInfo: clientsInfo,
+		Server:      server,
 	}
 
 	return
@@ -72,48 +89,97 @@ func (p *Poller) poll() error {
 		return err
 	}
 
-	p.sendBasicInfoUpdates(newBasicInfo)
+	newTeamScoresInfo, err := p.Server.GetTeamScores()
+	if err != nil {
+		log.Println("error getting info about team scores from server:", err)
+		return err
+	}
 
+	newClientsInfo, err := p.Server.GetAllClientInfo()
+	if err != nil {
+		log.Println("error getting info about all clients from server:", err)
+		return err
+	}
+
+	p.sendBasicInfoUpdates(newBasicInfo, true)
 	p.BasicInfo = newBasicInfo
+
+	p.sendTeamScoresUpdates(newTeamScoresInfo.Scores, true)
+	p.TeamScores = newTeamScoresInfo.Scores
+
+	p.sendClientsInfoUpdates(newClientsInfo, true)
+	p.ClientsInfo = newClientsInfo
+
 	return nil
 }
 
-func (p *Poller) getAllOnce() {
-	p.Updates <- "description\t" + p.BasicInfo.Description
-	p.Updates <- "gamemode\t" + p.BasicInfo.GameMode
-	p.Updates <- "map\t" + p.BasicInfo.Map
-	p.Updates <- "numberofclients\t" + strconv.Itoa(p.BasicInfo.NumberOfClients)
-	p.Updates <- "maxnumberofclients\t" + strconv.Itoa(p.BasicInfo.MaxNumberOfClients)
-	p.Updates <- "mastermode\t" + p.BasicInfo.MasterMode
-	p.Updates <- "timeleft\t" + strconv.Itoa(p.BasicInfo.SecsLeft)
-}
-
-func (p *Poller) sendBasicInfoUpdates(newBasicInfo extinfo.BasicInfo) {
-	if newBasicInfo.Description != p.BasicInfo.Description {
+func (p *Poller) sendBasicInfoUpdates(newBasicInfo extinfo.BasicInfo, onlyNew bool) {
+	if !onlyNew || newBasicInfo.Description != p.BasicInfo.Description {
 		p.Updates <- "description\t" + newBasicInfo.Description
 	}
 
-	if newBasicInfo.GameMode != p.BasicInfo.GameMode {
+	if !onlyNew || newBasicInfo.GameMode != p.BasicInfo.GameMode {
 		p.Updates <- "gamemode\t" + newBasicInfo.GameMode
 	}
 
-	if newBasicInfo.Map != p.BasicInfo.Map {
+	if !onlyNew || newBasicInfo.Map != p.BasicInfo.Map {
 		p.Updates <- "map\t" + newBasicInfo.Map
 	}
 
-	if newBasicInfo.NumberOfClients != p.BasicInfo.NumberOfClients {
+	if !onlyNew || newBasicInfo.NumberOfClients != p.BasicInfo.NumberOfClients {
 		p.Updates <- "numberofclients\t" + strconv.Itoa(newBasicInfo.NumberOfClients)
 	}
 
-	if newBasicInfo.MaxNumberOfClients != p.BasicInfo.MaxNumberOfClients {
+	if !onlyNew || newBasicInfo.MaxNumberOfClients != p.BasicInfo.MaxNumberOfClients {
 		p.Updates <- "maxnumberofclients\t" + strconv.Itoa(newBasicInfo.MaxNumberOfClients)
 	}
 
-	if newBasicInfo.MasterMode != p.BasicInfo.MasterMode {
+	if !onlyNew || newBasicInfo.MasterMode != p.BasicInfo.MasterMode {
 		p.Updates <- "mastermode\t" + newBasicInfo.MasterMode
 	}
 
-	if newBasicInfo.SecsLeft != p.BasicInfo.SecsLeft {
+	if !onlyNew || newBasicInfo.SecsLeft != p.BasicInfo.SecsLeft {
 		p.Updates <- "timeleft\t" + strconv.Itoa(newBasicInfo.SecsLeft)
 	}
+}
+
+func (p *Poller) sendTeamScoresUpdates(newTeamScores map[string]extinfo.TeamScore, onlyNew bool) {
+	for _, newTeamScore := range newTeamScores {
+		oldTeamScore, ok := p.TeamScores[newTeamScore.Name]
+		if !onlyNew || !ok || newTeamScore.Score != oldTeamScore.Score {
+			p.Updates <- "team\t" + newTeamScore.Name + "\t" + strconv.Itoa(newTeamScore.Score)
+		}
+	}
+}
+
+type ClientInfo struct {
+	ClientNum int    `json:"cn"`
+	Name      string `json:"name"`
+	Team      string `json:"team"`
+	Frags     int    `json:"frags"`
+	Deaths    int    `json:"deaths"`
+	Accuracy  int    `json:"accuracy"`
+}
+
+func (p *Poller) sendClientsInfoUpdates(newClientsInfo map[int]extinfo.ClientInfo, onlyNew bool) {
+	clientInfos := []ClientInfo{}
+
+	for _, clientInfo := range newClientsInfo {
+		clientInfos = append(clientInfos, ClientInfo{
+			clientInfo.ClientNum,
+			clientInfo.Name,
+			clientInfo.Team,
+			clientInfo.Frags,
+			clientInfo.Deaths,
+			clientInfo.Accuracy,
+		})
+	}
+
+	clientInfosJSON, err := json.Marshal(clientInfos)
+	if err != nil {
+		println(err)
+	}
+
+	p.Updates <- "players\t" + string(clientInfosJSON)
+
 }

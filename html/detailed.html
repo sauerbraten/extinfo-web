@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+	<title>monitor // extinfo-web</title>
+	<script src="http://use.edgefonts.net/open-sans.js"></script>
+	<script src="/utils.js"></script>
+	<script src="/scoreboard.js"></script>
+	<script src="/extinfo_detailed.js"></script>
+	<link rel="stylesheet" href="/style_full.css">
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+
+<body onload="init();" spellcheck="false">
+	<table id="scoreboard">
+		<thead>
+			<tr>
+				<td colspan="4">
+					<h1 id="description">
+						...
+					</h1>
+				</td>
+			</tr>
+			<tr>
+				<td>
+					<span id="gamemode" class="bold"></span> on <span id="map" class="bold"></span>
+				</td>
+				<td id="timeleft"></td>
+				<td id="mastermode"></td>
+				<td>
+					<span id="numberofclients"></span>/<span id="maxnumberofclients"></span>
+				</td>
+			</tr>
+		</thead>
+		<tbody id="teams"></tbody>
+	</table>
+</body>
+</html>

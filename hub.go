@@ -49,7 +49,7 @@ func (h *Hub) run() {
 			// if no subscriber left
 			if len(h.Subscribers) == 0 {
 				// stop poller
-				log.Println("stopping poller & hub")
+				log.Println("no subscribers left, stopping poller & hub")
 				h.Poller.Quit <- struct{}{}
 
 				// remove hub

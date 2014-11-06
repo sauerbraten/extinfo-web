@@ -21,6 +21,10 @@ func home(resp http.ResponseWriter, req *http.Request) {
 	template.Must(template.ParseFiles("html/index.html")).Execute(resp, nil)
 }
 
+func detailed(resp http.ResponseWriter, req *http.Request) {
+	template.Must(template.ParseFiles("html/detailed.html")).Execute(resp, nil)
+}
+
 func status(resp http.ResponseWriter, req *http.Request) {
 	template.Must(template.ParseFiles("html/status.html")).Execute(resp, hubs)
 }
@@ -85,6 +89,7 @@ func websocketHandler(resp http.ResponseWriter, req *http.Request) {
 
 func main() {
 	http.HandleFunc("/", home)
+	http.HandleFunc("/detailed", detailed)
 	http.HandleFunc("/status", status)
 	http.HandleFunc("/embedding-demo", demo)
 	http.HandleFunc("/embed.js", embedJS)
@@ -94,7 +99,10 @@ func main() {
 	http.Handle("/style.css", http.FileServer(http.Dir("css")))
 	http.Handle("/style_full.css", http.FileServer(http.Dir("css")))
 
+	http.Handle("/utils.js", http.FileServer(http.Dir("js")))
 	http.Handle("/extinfo.js", http.FileServer(http.Dir("js")))
+	http.Handle("/scoreboard.js", http.FileServer(http.Dir("js")))
+	http.Handle("/extinfo_detailed.js", http.FileServer(http.Dir("js")))
 
 	log.Println("server listening on 0.0.0.:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {

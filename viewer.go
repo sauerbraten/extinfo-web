@@ -86,7 +86,10 @@ func (v *Viewer) processMessage(message string) error {
 
 	v.Unregister = h.Unregister
 	h.Register <- v
-	h.Poller.getAllOnce()
+
+	h.Poller.sendBasicInfoUpdates(h.Poller.BasicInfo, false)
+	h.Poller.sendTeamScoresUpdates(h.Poller.TeamScores, false)
+	h.Poller.sendClientsInfoUpdates(h.Poller.ClientsInfo, false)
 
 	return err
 }
