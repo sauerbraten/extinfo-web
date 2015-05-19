@@ -104,8 +104,11 @@ func main() {
 	http.Handle("/scoreboard.js", http.FileServer(http.Dir("js")))
 	http.Handle("/extinfo_detailed.js", http.FileServer(http.Dir("js")))
 
-	log.Println("server listening on 0.0.0.:8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	// static file server for shits and giggles
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+
+	log.Println("server listening on http://extinfo.sauerworld.org:8080/")
+	if err := http.ListenAndServe("extinfo.sauerworld.org:8080", nil); err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
 }

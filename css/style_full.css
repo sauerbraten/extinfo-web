@@ -33,6 +33,10 @@ td, th, .extinfo-error {
 	padding: 0.4em 0.5em;
 }
 
+td {
+	border: 1px solid black;
+}
+
 td[id$='description'] {
 	text-align: center;
 	font-weight: bold;
