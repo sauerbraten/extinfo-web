@@ -10,6 +10,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const PublicWebInterfaceAddress = "extinfo.sauerworld.org"
+
 var hubs = map[string]*Hub{}
 
 var upgrader = websocket.Upgrader{
@@ -30,7 +32,7 @@ func status(resp http.ResponseWriter, req *http.Request) {
 }
 
 func demo(resp http.ResponseWriter, req *http.Request) {
-	template.Must(template.ParseFiles("html/embed_demo.html")).Execute(resp, req.Host)
+	template.Must(template.ParseFiles("html/embed_demo.html")).Execute(resp, PublicWebInterfaceAddress)
 }
 
 func embedJS(resp http.ResponseWriter, req *http.Request) {
@@ -104,8 +106,8 @@ func main() {
 	http.Handle("/scoreboard.js", http.FileServer(http.Dir("js")))
 	http.Handle("/extinfo_detailed.js", http.FileServer(http.Dir("js")))
 
-	log.Println("server listening on http://extinfo.sauerworld.org:8080/")
-	if err := http.ListenAndServe("extinfo.sauerworld.org:8080", nil); err != nil {
+	log.Println("server listening on http://localhost:8080/")
+	if err := http.ListenAndServe("localhost:8080", nil); err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
 }
