@@ -49,7 +49,7 @@ func embedJS(resp http.ResponseWriter, req *http.Request) {
 		Port string
 		Id   string
 	}{
-		req.Host,
+		PublicWebInterfaceAddress,
 		req.FormValue("addr"),
 		req.FormValue("port"),
 		req.FormValue("id"),
