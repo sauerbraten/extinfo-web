@@ -21,7 +21,7 @@ var playerAttributes = [
 
 var teams = [];
 
-// applys a modifier, if one is defined for the specified attribute, and makes the value HTML-safe
+// applies a modifier, if one is defined for the specified attribute, and makes the value HTML-safe
 function finalizeValue(attribute, value) {
 	var finalValue = value;
 

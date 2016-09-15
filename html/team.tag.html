@@ -1,0 +1,24 @@
+<team>
+    <h2>{opts.name}: {opts.score}></h2>
+
+    <table>
+        <thead>
+            <tr>
+                <td>Frags</td>
+                <td>Deaths</td>
+                <td>Accuracy</td>
+                <td>Name</td>
+                <td>CN</td>
+            </tr>
+        </thead>
+        <tbody>
+            <tr each={player in opts.players}>
+                <td>{player.frags}</td>
+                <td>{player.deaths}</td>
+                <td>{player.accuracy}</td>
+                <td>{player.name}</td>
+                <td>{player.cn}</td>
+            </tr>
+        </tbody>
+    </table>
+</team>

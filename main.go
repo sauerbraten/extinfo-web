@@ -7,6 +7,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
@@ -90,24 +91,23 @@ func websocketHandler(resp http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/", home)
-	http.HandleFunc("/detailed", detailed)
-	http.HandleFunc("/status", status)
-	http.HandleFunc("/embedding-demo", demo)
-	http.HandleFunc("/embed.js", embedJS)
+	r := mux.NewRouter()
+	r.StrictSlash(true)
 
-	http.HandleFunc("/ws", websocketHandler)
+	r.HandleFunc("/", home)
+	r.HandleFunc("/detailed", detailed)
+	r.HandleFunc("/status", status)
+	r.HandleFunc("/embedding-demo", demo)
+	r.HandleFunc("/embed.js", embedJS)
 
-	http.Handle("/style.css", http.FileServer(http.Dir("css")))
-	http.Handle("/style_full.css", http.FileServer(http.Dir("css")))
+	r.Handle("/{fn:[-_a-z]+\\.css}", http.FileServer(http.Dir("css")))
+	r.Handle("/{fn:[-_\\.a-z]+\\.js}", http.FileServer(http.Dir("js")))
+	r.Handle("/{fn:[-_\\.a-z]+\\.html}", http.FileServer(http.Dir("html")))
 
-	http.Handle("/utils.js", http.FileServer(http.Dir("js")))
-	http.Handle("/extinfo.js", http.FileServer(http.Dir("js")))
-	http.Handle("/scoreboard.js", http.FileServer(http.Dir("js")))
-	http.Handle("/extinfo_detailed.js", http.FileServer(http.Dir("js")))
+	r.HandleFunc("/ws", websocketHandler)
 
 	log.Println("server listening on http://localhost:8080/")
-	if err := http.ListenAndServe("localhost:8080", nil); err != nil {
+	if err := http.ListenAndServe("localhost:8080", r); err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
 }
