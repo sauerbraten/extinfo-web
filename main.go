@@ -25,7 +25,7 @@ func home(resp http.ResponseWriter, req *http.Request) {
 }
 
 func detailed(resp http.ResponseWriter, req *http.Request) {
-	template.Must(template.ParseFiles("html/detailed.html")).Execute(resp, nil)
+	http.ServeFile(resp, req, "html/detailed.html")
 }
 
 func status(resp http.ResponseWriter, req *http.Request) {

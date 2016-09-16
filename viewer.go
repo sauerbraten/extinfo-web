@@ -68,7 +68,11 @@ func (v *Viewer) processMessage(message string) error {
 			hostname = names[0]
 			// cut off trailing '.'
 			hostname = hostname[:len(hostname)-1]
+		} else {
+			return err
 		}
+
+		log.Println(names)
 
 		// spawn new poller and hub for new sauer server
 		newHub, err := newHubWithPoller(addr, hostname)
@@ -87,9 +91,7 @@ func (v *Viewer) processMessage(message string) error {
 	v.Unregister = h.Unregister
 	h.Register <- v
 
-	h.Poller.sendBasicInfoUpdates(h.Poller.BasicInfo)
-	h.Poller.sendTeamInfoUpdates(h.Poller.TeamScores)
-	h.Poller.sendClientsInfoUpdates(h.Poller.ClientsInfo)
+	v.OutboundMessages <- h.Poller.LastupdateJSON
 
 	return err
 }

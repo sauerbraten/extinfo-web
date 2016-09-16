@@ -2,10 +2,6 @@ var sock
 var port = '28785'
 var host = '164.132.110.240'
 
-var serverinfo = {}
-var teams = {}
-var players = {}
-
 function init() {
 	if (!('WebSocket' in window)) {
 		error('sorry, but your browser does not support websockets', 'try updating your browser')
@@ -42,43 +38,40 @@ function initsocket() {
 
 	sock.onmessage = function (m) {
 		console.log('received:', m.data)
-		var parts = m.data.split('\t')
+		var update = JSON.parse(m.data)
 
-		var field = parts[0]
+		window.data.info = update.serverinfo
 
-		switch (field) {
-			case 'serverinfo':
-				serverinfo = JSON.parse(parts[1])
-				return
-
-			case 'team':
-				var team = JSON.parse(parts[1])
-
-				if (team == 'delete') {
-					delete teams[parts[2]]
-				} else {
-					teams[team.name] = team
-				}
-				return
-
-			case 'player':
-				var player = JSON.parse(parts[1])
-				if (player == 'delete') {
-					delete players[parts[2]]
-				} else {
-					players[players.cn] = player
-				}
-				return
-
-			case 'error':
-				var err = JSON.parse(parts[1])
-				error(err.message, error.hint)
-				sock.close()
-				return
+		for (teamName in update.teams) {
+			update.teams[teamName].players = []
 		}
+
+		for (cn in update.players) {
+			var player = update.players[cn]
+			update.teams[player.team].players.push(player) 
+		}
+
+		for (teamName in update.teams) {
+			update.teams[teamName].players.sort(scoreboardSortingFunction)
+		}
+
+		window.data.teams = update.teams
 	}
 }
 
 function error(err) {
 	console.log(err);
+}
+
+// frags (descending), then deaths (ascending), then accuracy (descending)
+function scoreboardSortingFunction (a, b) {
+	if (a.frags == b.frags) {
+		if (a.deaths == b.deaths) {
+			return b.accuracy - a.accuracy;
+		} else {
+			return a.deaths - b.deaths;
+		}
+	} else {
+		return b.frags - a.frags;
+	}
 }
