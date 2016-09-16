@@ -21,7 +21,7 @@ func (v *Viewer) readUntilClose() {
 		messageType, payload, err := v.Websocket.ReadMessage()
 		if err != nil {
 			if err != io.EOF {
-				// client did no cleanly close the connection
+				// client did not cleanly close the connection
 				log.Println("forcing unregister:", err)
 			}
 
@@ -71,8 +71,6 @@ func (v *Viewer) processMessage(message string) error {
 		} else {
 			return err
 		}
-
-		log.Println(names)
 
 		// spawn new poller and hub for new sauer server
 		newHub, err := newHubWithPoller(addr, hostname)

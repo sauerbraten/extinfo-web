@@ -1,1 +1,100 @@
-body{font-family:open-sans,sans-serif;color:#333;max-width:50em;margin:0 auto;padding:1em}table{border-collapse:collapse;box-shadow:0 0 10px 2px rgba(0,0,0,.25);color:#fff}thead>tr,thead>tr:nth-child(odd){background:#2564a2}tr{background:#1c1c1c}tr:nth-child(odd){background:#272727}.extinfo-error,td{padding:.4em .5em}td[id$=description]{text-align:center;font-weight:700}td:focus{background:rgba(0,0,0,.1);outline:0;box-shadow:inset 0 0 2px 0 rgba(255,255,255,.5)}td::selection,td>span::selection{background:#fac92a}a:link{color:#2564a2}a:visited{color:#333}ul{margin:0;padding-left:2em;list-style-type:none}li{text-indent:-.6em}li:before{content:"–";position:relative;left:-.6em}p,small,ul{margin-bottom:.1em;display:block}pre{-moz-tab-size:4;-o-tab-size:4;-webkit-tab-size:4;-ms-tab-size:4;tab-size:4}code{background:#eee;padding:.2em}#extinfo-demo table{margin:1.5em auto}.count{text-align:right}.extinfo-error{display:inline-block;background:#a22525;color:#fff}.extinfo-error p{margin:0}
+body {
+	font-family: monospace;
+
+	display: flex;
+	flex-flow: column nowrap;
+	align-items: stretch;
+	justify-content: center;
+
+	width: 72em;
+	min-height: 100vh;
+	margin: 0 auto;
+	padding: 0 .5em;
+}
+
+
+header, main, footer, #teams {
+	display: flex;
+}
+
+header, main {
+	flex-flow: column nowrap;
+	align-items: stretch;
+}
+
+main {
+	flex-grow: 1;
+}
+
+footer {
+	flex-flow: row wrap;
+	justify-content: center;
+	margin: 2em 0;
+}
+
+#teams {
+	flex-flow: row wrap;
+	justify-content: space-around;
+}
+
+h1, h2, h3 {
+	text-align: center;
+}
+
+h1 {
+	margin: 1.5em 0;
+}
+
+h3 {
+	font-weight: normal;
+	text-transform: uppercase;
+}
+
+.team-table {
+	flex-basis: 30em;
+	margin: 0 2em;
+}
+
+table {
+	min-width: 100%;
+	border-collapse: collapse;
+}
+
+thead {
+	font-weight: bold;
+	text-align: center;
+	border-bottom: 1px solid #bbb;
+}
+
+td {
+	padding: .25em .75em;
+	max-width: 20em;
+	overflow-x: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+td + td {
+	border-left: 1px solid #bbb;
+}
+
+#spectators {
+	text-align: center;
+}
+
+.spectator {
+	display: inline-block;
+	margin: .75em 0;
+}
+
+.spectator + .spectator {
+	padding-left: 2em;
+}
+
+a {
+	color: #2564a2;
+}
+
+.count {
+	text-align: right;
+}

@@ -1,91 +1,90 @@
 <!doctype html>
 <html>
+
 <head>
-	<title>monitor // extinfo-web</title>
-	<script src="http://use.edgefonts.net/open-sans.js"></script>
-	<script src="/extinfo.js"></script>
-	<link rel="stylesheet" href="/style_full.css">
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>live monitor – extinfo</title>
+	<script src='http://cdnjs.cloudflare.com/ajax/libs/vue/1.0.26/vue.min.js'></script>
+	<script src='/extinfo.js'></script>
+	<link rel='stylesheet' href='/style.css'>
+	<meta name='viewport' content='width=device-width, initial-scale=1' />
 </head>
 
-<body onload="init();" spellcheck="false">
-	<h1 id="heading">
-		... // extinfo-web
-	</h1>
-	<table id="table">
-		<thead>
-			<tr>
-				<td>Host</td>
-				<td id="host" contenteditable spellcheck="false" onblur="updatesocket();">
-					noviteam.de
-				</td>
-			</tr>
-			<tr>
-				<td>Port</td>
-				<td id="port" contenteditable spellcheck="false" onblur="updatesocket();">
-					28785
-				</td>
-			</tr>
-		</thead>
-		<tbody>
-			<tr>
-				<td id="description" colspan="2">&nbsp;</td>
-			</tr>
-			<tr>
-				<td>Game Mode</td>
-				<td id="gamemode"></td>
-			</tr>
-			<tr>
-				<td>Map</td>
-				<td id="map"></td>
-			</tr>
-			<tr>
-				<td>Clients</td>
-				<td><span id="numberofclients"></span>/<span id="maxnumberofclients"></span></td>
-			</tr>
-			<tr>
-				<td>Master Mode</td>
-				<td id="mastermode"></td>
-			</tr>
-			<tr>
-				<td>Time Left</td>
-				<td id="timeleft"></td>
-			</tr>
-		</tbody>
-	</table>
+<body onload='init();' spellcheck='false'>
+	<header id='serverinfo'>
+		<h1>{{info.description}}</h1>
+		<h3>
+			<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong> | {{int2string(info.secsLeft)}} | {{info.masterMode}}
+			| {{info.numberOfClients}}/{{info.maxNumberOfClients}}
+		</h3>
+	</header>
 
-	<p>what</p>
-	<small>
-		this is a live monitor for any <a href="//sauerbraten.org" target="_blank">sauerbraten</a> server
-	</small>
+	<main>
+		<div id='teams'>
+			<div class='team-table' v-for='team in teams'>
+				<h2>{{team.name}}: {{team.score}}</h2>
+				<table>
+					<thead>
+						<tr>
+							<td>Frags</td>
+							<td>Deaths</td>
+							<td>Accuracy</td>
+							<td>Name</td>
+							<td>CN</td>
+						</tr>
+					</thead>
+					<tbody>
+						<tr v-for='player in team.players'>
+							<td class='count'>{{player.frags}}</td>
+							<td class='count'>{{player.deaths}}</td>
+							<td class='count'>{{player.accuracy}}%</td>
+							<td>{{player.name}}</td>
+							<td class='count'>{{player.clientNum}}</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
 
-	<p>how</p>
-	<small>
-		try editing the server address (host and port fields) to <i>ogros.org</i> and <i>20000</i>, and tab out of both fields
-	</small>
+		<div id='spectators'>
+			<h2>spectators</h2>
+			<span class='spectator' v-for='spectator in spectators'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
+		</div>
+	</main>
 
-	<p>embed</p>
-	<small>
-		you can embed this on your website using the <code>embed.js</code> file; an example is <a href="/embedding-demo" target="_blank">here</a>
-	</small>
+	<footer>
+		<small>
+			Sauerbraten server live monitor by pix – <a href='https://github.com/sauerbraten/extinfo-web'>Code</a>
+		</small>
+	</footer>
 
-	<p>about</p>
-	<small>
-		<ul>
-			<li>update interval is 5 seconds</li>
-			<li>backend written in <a href="http://golang.org" target="_blank">go</a></li>
-			<li>code is <a href="//github.com/sauerbraten/extinfo-web" target="_blank">here</a></li>
-			<li>uses the <a href="//github.com/sauerbraten/extinfo" target="_blank">extinfo package</a></li>
-			<li>websockets → no page refreshs, no ajax requests</li>
-			<li>the <a href="/status" target="_blank">status page</a> lists how many viewers are subscribed to each server</li>
-			<li>one poller per server</li>
-			<li>hubs broadcast changes at one server to all viewers subscribed to that server</li>
-		</ul>
-	</small>
+	<script>
+		var model = {
+			info: {},
+			teams: {},
+			spectators: [],
+		}
 
-	<p>by</p>
-	<small>
-		pix
-	</small>
+		new Vue({
+			el: '#serverinfo',
+			data: model,
+			methods: {
+				int2string: function(secondsLeft) {
+					var minutes = Math.floor(secondsLeft/60)
+					var seconds = secondsLeft % 60
+					return (minutes < 10 ? '0' : '') + minutes + ':' + (seconds < 10 ? '0' : '') + seconds
+				}
+			}
+		})
+
+		new Vue({
+			el: '#teams',
+			data: model,
+		})
+
+				new Vue({
+			el: '#spectators',
+			data: model,
+		})
+	</script>
 </body>
 </html>

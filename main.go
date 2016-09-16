@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"sync"
-	"text/template"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -21,40 +20,7 @@ var upgrader = websocket.Upgrader{
 }
 
 func home(resp http.ResponseWriter, req *http.Request) {
-	template.Must(template.ParseFiles("html/index.html")).Execute(resp, nil)
-}
-
-func detailed(resp http.ResponseWriter, req *http.Request) {
-	http.ServeFile(resp, req, "html/detailed.html")
-}
-
-func status(resp http.ResponseWriter, req *http.Request) {
-	template.Must(template.ParseFiles("html/status.html")).Execute(resp, hubs)
-}
-
-func demo(resp http.ResponseWriter, req *http.Request) {
-	template.Must(template.ParseFiles("html/embed_demo.html")).Execute(resp, PublicWebInterfaceAddress)
-}
-
-func embedJS(resp http.ResponseWriter, req *http.Request) {
-	err := req.ParseForm()
-	if err != nil {
-		log.Println(err)
-		http.NotFound(resp, req)
-		return
-	}
-
-	template.Must(template.ParseFiles("js/embed.js")).Execute(resp, struct {
-		Host string
-		Addr string
-		Port string
-		Id   string
-	}{
-		PublicWebInterfaceAddress,
-		req.FormValue("addr"),
-		req.FormValue("port"),
-		req.FormValue("id"),
-	})
+	http.ServeFile(resp, req, "html/index.html")
 }
 
 // registers websockets
@@ -95,12 +61,8 @@ func main() {
 	r.StrictSlash(true)
 
 	r.HandleFunc("/", home)
-	r.HandleFunc("/detailed", detailed)
-	r.HandleFunc("/status", status)
-	r.HandleFunc("/embedding-demo", demo)
-	r.HandleFunc("/embed.js", embedJS)
 
-	r.Handle("/{fn:[-_a-z]+\\.css}", http.FileServer(http.Dir("css")))
+	r.Handle("/{fn:[-_\\.a-z]+\\.css}", http.FileServer(http.Dir("css")))
 	r.Handle("/{fn:[-_\\.a-z]+\\.js}", http.FileServer(http.Dir("js")))
 	r.Handle("/{fn:[-_\\.a-z]+\\.html}", http.FileServer(http.Dir("html")))
 
