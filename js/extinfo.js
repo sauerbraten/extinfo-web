@@ -1,6 +1,6 @@
 var sock
 var port = '28785'
-var host = 'noviteam.de'
+var host = 'pastaland.ovh'
 
 function init() {
 	if (!('WebSocket' in window)) {
