@@ -16,7 +16,7 @@ body {
 }
 
 
-header, main, footer, #teams {
+header, main, footer, .players {
 	display: flex;
 }
 
@@ -35,7 +35,7 @@ footer {
 	margin: 2em 0;
 }
 
-#teams {
+.players {
 	flex-flow: row wrap;
 	justify-content: space-around;
 }
@@ -81,7 +81,7 @@ td + td {
 	border-left: 1px solid #bbb;
 }
 
-#spectators {
+.spectators {
 	text-align: center;
 }
 

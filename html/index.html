@@ -2,13 +2,13 @@
 <html>
 
 <head>
-	<meta http-equiv="X-UA-Compatible" content="IE=Edge">
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<meta charset="utf-8">
+	<meta http-equiv='X-UA-Compatible' content='IE=Edge'>
+	<meta name='viewport' content='width=device-width, initial-scale=1' />
+	<meta charset='utf-8'>
 
 	<title>live monitor – extinfo</title>
 
-	<link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,700&subset=cyrillic,greek" rel="stylesheet">
+	<link href='https://fonts.googleapis.com/css?family=Roboto+Mono:400,700&subset=cyrillic,greek' rel='stylesheet'>
 	<link rel='stylesheet' href='/style.css'>
 
 	<script src='http://cdnjs.cloudflare.com/ajax/libs/vue/1.0.26/vue.min.js'></script>
@@ -25,7 +25,7 @@
 	</header>
 
 	<main>
-		<div id='teams'>
+		<div id='teams' class='players'>
 			<div class='team-table' v-for='team in teams'>
 				<h2>{{team.name}}: {{team.score}}</h2>
 				<table>
@@ -51,7 +51,7 @@
 			</div>
 		</div>
 
-		<div id='spectators'>
+		<div id='spectators' class='spectators' v-show='spectators.length > 0'>
 			<h2>spectators</h2>
 			<span class='spectator' v-for='spectator in spectators'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
 		</div>
