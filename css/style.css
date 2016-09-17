@@ -9,6 +9,8 @@ body {
 
 	max-width: 72em;
 	min-height: 100vh;
+	overflow-y: scroll;
+
 	margin: 0 auto;
 	padding: 0 .5em;
 }
