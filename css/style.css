@@ -1,12 +1,13 @@
 body {
-	font-family: 'Source Code Pro', monospace;
+	font-family: 'Roboto Mono', monospace;
+	font-size: small;
 
 	display: flex;
 	flex-flow: column nowrap;
 	align-items: stretch;
 	justify-content: center;
 
-	width: 72em;
+	max-width: 72em;
 	min-height: 100vh;
 	margin: 0 auto;
 	padding: 0 .5em;
