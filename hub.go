@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -75,4 +76,47 @@ func (h *Hub) run() {
 			}
 		}
 	}
+}
+
+type Hubs map[string]*Hub
+
+func (hubs *Hubs) GetOrCreateHub(serverAddress string) (*Hub, error) {
+	// get address
+	addr, err := net.ResolveUDPAddr("udp4", serverAddress)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// get hostname
+	hostname := addr.IP.String()
+
+	names, err := net.LookupAddr(addr.IP.String())
+	if err != nil {
+		return nil, err
+	}
+
+	for _, name := range names {
+		if hub, ok := (*hubs)[name[:len(name)-1]+strconv.Itoa(addr.Port)]; ok {
+			return hub, nil
+		}
+	}
+
+	hostname = names[0]
+	// cut off trailing '.'
+	hostname = hostname[:len(hostname)-1]
+
+	// spawn new poller and hub for new sauer server
+	hub, err := newHubWithPoller(addr, hostname)
+	if err != nil {
+		return nil, err
+	}
+
+	(*hubs)[addr.String()] = hub
+
+	go hub.run()
+
+	log.Println("spawned new hub for", addr.String())
+
+	return hub, nil
 }

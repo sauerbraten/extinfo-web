@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -12,7 +11,7 @@ import (
 
 const PublicWebInterfaceAddress = "extinfo.sauerworld.org"
 
-var hubs = map[string]*Hub{}
+var hubs = Hubs{}
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -25,35 +24,36 @@ func home(resp http.ResponseWriter, req *http.Request) {
 
 // registers websockets
 func websocketHandler(resp http.ResponseWriter, req *http.Request) {
+	addr := mux.Vars(req)["addr"]
+
+	log.Println(addr)
+
+	hub, err := hubs.GetOrCreateHub(addr)
+	if err != nil {
+		log.Println(err)
+		resp.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	conn, err := upgrader.Upgrade(resp, req, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 
-	v := &Viewer{
+	viewer := &Viewer{
 		Websocket:        conn,
-		OutboundMessages: make(chan string),
+		OutboundMessages: make(chan string, 1),
+		Unregister:       hub.Unregister,
 	}
 
-	wg := &sync.WaitGroup{}
+	hub.Register <- viewer
+	viewer.OutboundMessages <- hub.Poller.LastupdateJSON
 
-	wg.Add(2)
+	viewer.writeUntilClose()
 
-	go func(wg *sync.WaitGroup) {
-		v.writeUntilClose()
-		wg.Done()
-	}(wg)
-
-	go func(wg *sync.WaitGroup) {
-		v.readUntilClose()
-		wg.Done()
-	}(wg)
-
-	wg.Wait()
-
-	v.Websocket.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(5*time.Second))
-	v.Websocket.Close()
+	viewer.Websocket.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(5*time.Second))
+	viewer.Websocket.Close()
 }
 
 func main() {
@@ -66,7 +66,7 @@ func main() {
 	r.Handle("/{fn:[-_\\.a-z]+\\.js}", http.FileServer(http.Dir("js")))
 	r.Handle("/{fn:[-_\\.a-z]+\\.html}", http.FileServer(http.Dir("html")))
 
-	r.HandleFunc("/ws", websocketHandler)
+	r.HandleFunc("/ws/{addr}", websocketHandler)
 
 	log.Println("server listening on http://localhost:8080/")
 	if err := http.ListenAndServe("localhost:8080", r); err != nil {

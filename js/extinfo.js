@@ -12,6 +12,8 @@ function init() {
 		var parts = window.location.hash.substring(1).split(':')
 		host = parts[0]
 		port = parts[1]
+	} else {
+		window.location.hash = host + ":" + port
 	}
 
 	initsocket()
@@ -23,17 +25,10 @@ function initsocket() {
 		sock = null
 	}
 
-	sock = new WebSocket('ws://' + window.location.host + '/ws')
+	sock = new WebSocket('ws://' + window.location.host + '/ws/'+host+":"+port)
 
-	sock.onopen = function (e) {
-		console.log(' - socket opened - ')
-		sock.send(host + ':' + port)
-		console.log('    sent:', host + ':' + port)
-	}
-
-	sock.onclose = function (e) {
-		console.log(' - socket closed - ')
-		document.title = 'extinfo-web'
+	sock.onerror = function() {
+		alert("could not connect to a server at that address!")
 	}
 
 	sock.onmessage = function (m) {
