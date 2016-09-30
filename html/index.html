@@ -16,7 +16,7 @@
 </head>
 
 <body onload='init();' spellcheck='false'>
-	<header id='serverinfo'>
+	<header id='serverinfo' v-bind:style='{ background: makeBackgroundString(info.map) }'>
 		<h1>{{info.description}}</h1>
 		<h3>
 			<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong> | {{int2string(info.secsLeft)}} | {{info.masterMode}}
@@ -65,7 +65,7 @@
 
 	<script>
 		var model = {
-			info: {},
+			info: {map: 'firstevermap'},
 			teams: {},
 			spectators: [],
 		}
@@ -78,6 +78,9 @@
 					var minutes = Math.floor(secondsLeft/60)
 					var seconds = secondsLeft % 60
 					return (minutes < 10 ? '0' : '') + minutes + ':' + (seconds < 10 ? '0' : '') + seconds
+				},
+				makeBackgroundString: function(map) {
+					return 'url("//sauertracker.net/images/mapshots/' + map + '.jpg") no-repeat center center / cover'
 				}
 			}
 		})

@@ -25,6 +25,12 @@ header, main {
 	align-items: stretch;
 }
 
+header {
+	background: #555;
+	color: white;
+	text-shadow: 0 0 3px black;
+}
+
 main {
 	flex-grow: 1;
 }
