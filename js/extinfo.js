@@ -4,7 +4,7 @@ var host = 'pastaland.ovh'
 
 function init() {
 	if (!('WebSocket' in window)) {
-		error('sorry, but your browser does not support websockets', 'try updating your browser')
+		alert('sorry, but your browser does not support websockets', 'try updating your browser')
 		return
 	}
 
@@ -60,10 +60,6 @@ function initsocket() {
 
 		model.teams = update.teams
 	}
-}
-
-function error(err) {
-	console.log(err)
 }
 
 // frags (descending), then deaths (ascending), then accuracy (descending)
