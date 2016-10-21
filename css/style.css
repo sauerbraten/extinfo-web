@@ -12,12 +12,12 @@ body {
 	overflow-y: scroll;
 
 	margin: 0 auto;
-	padding: 0 .5em;
 }
 
 
-header, main, footer, .players {
+header, main, footer {
 	display: flex;
+	padding: 0 .5em;
 }
 
 header, main {
@@ -42,6 +42,7 @@ footer {
 }
 
 .players {
+	display: flex;
 	flex-flow: row wrap;
 	justify-content: space-around;
 }
