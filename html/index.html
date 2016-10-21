@@ -11,7 +11,7 @@
 	<link href='https://fonts.googleapis.com/css?family=Roboto+Mono:400,700&subset=cyrillic,greek' rel='stylesheet'>
 	<link rel='stylesheet' href='/style.css'>
 
-	<script src='http://cdnjs.cloudflare.com/ajax/libs/vue/1.0.26/vue.min.js'></script>
+	<script src='https://cdnjs.cloudflare.com/ajax/libs/vue/2.0.3/vue.min.js'></script>
 	<script src='/extinfo.js'></script>
 </head>
 
@@ -19,8 +19,7 @@
 	<header id='serverinfo' v-bind:style='{ background: makeBackgroundString(info.map) }'>
 		<h1>{{info.description}}</h1>
 		<h3>
-			<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong> | {{int2string(info.secsLeft)}} | {{info.masterMode}}
-			| {{info.numberOfClients}}/{{info.maxNumberOfClients}}
+			<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong> | {{int2string(info.secsLeft)}} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
 		</h3>
 	</header>
 
@@ -75,9 +74,10 @@
 			data: model,
 			methods: {
 				int2string: function(secondsLeft) {
-					var minutes = Math.floor(secondsLeft/60)
-					var seconds = secondsLeft % 60
-					return (minutes < 10 ? '0' : '') + minutes + ':' + (seconds < 10 ? '0' : '') + seconds
+					var pad = function(i) { return (i < 10 ? '0' : '') + i }
+					var minutes = pad(Math.floor(secondsLeft/60))
+					var seconds = pad(secondsLeft % 60)
+					return minutes + ':' + seconds
 				},
 				makeBackgroundString: function(map) {
 					return 'url("//sauertracker.net/images/mapshots/' + map + '.jpg") no-repeat center center / cover'
@@ -90,7 +90,7 @@
 			data: model,
 		})
 
-				new Vue({
+		new Vue({
 			el: '#spectators',
 			data: model,
 		})
