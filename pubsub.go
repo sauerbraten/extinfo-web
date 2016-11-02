@@ -23,7 +23,7 @@ func NewPubSub() *PubSub {
 	}
 }
 
-func (p *PubSub) CreateTopicIfNotExists(topic Topic, createPublisher func(topic Topic) (Publisher, error)) error {
+func (p *PubSub) CreateTopicIfNotExists(topic Topic, createPublisher func() (Publisher, error)) error {
 	p.Lock()
 	defer p.Unlock()
 
@@ -31,7 +31,7 @@ func (p *PubSub) CreateTopicIfNotExists(topic Topic, createPublisher func(topic 
 		return nil
 	}
 
-	pub, err := createPublisher(topic)
+	pub, err := createPublisher()
 	if err != nil {
 		return err
 	}

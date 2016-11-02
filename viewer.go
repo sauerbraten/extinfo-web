@@ -39,7 +39,7 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 
 	topic := Topic(hostname + ":" + strconv.Itoa(port))
 
-	err = pubsub.CreateTopicIfNotExists(topic, func(topic Topic) (Publisher, error) {
+	err = pubsub.CreateTopicIfNotExists(topic, func() (Publisher, error) {
 		return NewPollerAsPublisher(hostname, port)
 	})
 
