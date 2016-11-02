@@ -2,74 +2,58 @@ package main
 
 import (
 	"log"
+	"net"
 	"net/http"
-	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/julienschmidt/httprouter"
 )
 
 const PublicWebInterfaceAddress = "extinfo.sauerworld.org"
 
-var hubs = Hubs{}
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
-
-func home(resp http.ResponseWriter, req *http.Request) {
-	http.ServeFile(resp, req, "html/index.html")
-}
-
-// registers websockets
-func websocketHandler(resp http.ResponseWriter, req *http.Request) {
-	addr := mux.Vars(req)["addr"]
-
-	log.Println(addr)
-
-	hub, err := hubs.GetOrCreateHub(addr)
-	if err != nil {
-		log.Println(err)
-		resp.WriteHeader(http.StatusInternalServerError)
-		return
+var (
+	pubsub *PubSub = &PubSub{
+		Publishers:    map[Topic]Publisher{},
+		Subscriptions: map[Topic]map[Subscriber]bool{},
 	}
 
-	conn, err := upgrader.Upgrade(resp, req, nil)
-	if err != nil {
-		log.Println(err)
-		return
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
 	}
+)
 
-	viewer := &Viewer{
-		Websocket:        conn,
-		OutboundMessages: make(chan string, 1),
-		Unregister:       hub.Unregister,
-	}
-
-	hub.Register <- viewer
-	viewer.OutboundMessages <- hub.Poller.LastupdateJSON
-
-	viewer.writeUntilClose()
-
-	viewer.Websocket.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(5*time.Second))
-	viewer.Websocket.Close()
+func init() {
+	go pubsub.Loop()
 }
 
 func main() {
-	r := mux.NewRouter()
-	r.StrictSlash(true)
+	r := httprouter.New()
+	r.RedirectTrailingSlash = true
 
-	r.HandleFunc("/", home)
+	r.GET("/", home)
 
-	r.Handle("/{fn:[-_\\.a-z]+\\.css}", http.FileServer(http.Dir("css")))
-	r.Handle("/{fn:[-_\\.a-z]+\\.js}", http.FileServer(http.Dir("js")))
-	r.Handle("/{fn:[-_\\.a-z]+\\.html}", http.FileServer(http.Dir("html")))
+	r.ServeFiles("/css/*filepath", http.Dir("css"))
+	r.ServeFiles("/js/*filepath", http.Dir("js"))
 
-	r.HandleFunc("/ws/{addr}", websocketHandler)
+	//r.GET("/master", watchMasterServerList)
+	r.GET("/server/:addr", watchServer)
 
 	log.Println("server listening on http://localhost:8080/")
 	if err := http.ListenAndServe("localhost:8080", r); err != nil {
 		log.Fatal("ListenAndServe:", err)
 	}
+}
+
+func home(resp http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	http.ServeFile(resp, req, "html/index.html")
+}
+
+func getCanonicalHostname(hostname string) string {
+	names, err := net.LookupAddr(hostname)
+	if err != nil {
+		return hostname
+	}
+
+	return names[0][:len(hostname)-1] // cut off trailing '.'
 }

@@ -25,7 +25,7 @@ function initsocket() {
 		sock = null
 	}
 
-	sock = new WebSocket('ws://' + window.location.host + '/ws/'+host+":"+port)
+	sock = new WebSocket('ws://' + window.location.host + '/server/'+host+":"+port)
 
 	sock.onerror = function() {
 		alert("could not connect to a server at that address!")

@@ -4,82 +4,70 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"net"
 	"time"
 
 	"github.com/sauerbraten/extinfo"
 )
 
 type Poller struct {
-	Quit           chan struct{}
-	Updates        chan string
+	Updates        Publisher
 	LastupdateJSON string
 	Server         *extinfo.Server
+}
+
+func NewPollerAsPublisher(hostname string, port int) (pub Publisher, err error) {
+	server, err := extinfo.NewServer(hostname, port, 5*time.Second)
+	if err != nil {
+		return
+	}
+
+	poller := &Poller{
+		Updates: Publisher(make(chan string, 1)),
+		Server:  server,
+	}
+
+	poller.poll()
+	go poller.pollForever()
+
+	pub = poller.Updates
+
+	return
+}
+
+func (p *Poller) pollForever() {
+	errorCount := 0
+	for _ = range time.Tick(5 * time.Second) {
+		if errorCount > 10 {
+			log.Println("problem with server, stopping poller")
+			close(p.Updates)
+			return
+		}
+
+		err := p.poll()
+
+		if err != nil {
+			log.Println(err)
+			errorCount++
+		} else {
+			errorCount = 0
+		}
+	}
+}
+
+func (p *Poller) poll() (err error) {
+	p.LastupdateJSON, err = p.buildUpdate()
+	if err != nil {
+		return
+	}
+
+	p.Updates <- p.LastupdateJSON
+	return
 }
 
 type Update struct {
 	ServerInfo extinfo.BasicInfo            `json:"serverinfo"`
 	Teams      map[string]extinfo.TeamScore `json:"teams"`
 	Players    map[int]extinfo.ClientInfo   `json:"players"`
-}
-
-func newPoller(addr *net.UDPAddr) (p *Poller, err error) {
-	var server *extinfo.Server
-	server, err = extinfo.NewServer(addr.IP.String(), addr.Port, 5*time.Second)
-	if err != nil {
-		return
-	}
-
-	p = &Poller{
-		Quit:    make(chan struct{}),
-		Updates: make(chan string),
-		Server:  server,
-	}
-
-	var updateJSON string
-	updateJSON, err = p.buildUpdate()
-	if err != nil {
-		return
-	}
-
-	p.LastupdateJSON = updateJSON
-
-	return
-}
-
-func (p *Poller) pollForever() {
-	t := time.NewTicker(5 * time.Second)
-	errorCount := 0
-	for {
-		if errorCount > 10 {
-			log.Println("problem with server, stopping poller")
-			p.Quit <- struct{}{}
-		}
-
-		select {
-		case <-p.Quit:
-			t.Stop()
-			return
-
-		case <-t.C:
-			err := p.poll()
-			if err != nil {
-				log.Println(err)
-				errorCount++
-			} else {
-				errorCount = 0
-			}
-		}
-	}
-}
-
-func (p *Poller) poll() error {
-	updateJSON, err := p.buildUpdate()
-	if err == nil {
-		p.Updates <- updateJSON
-	}
-
-	return err
 }
 
 func (p *Poller) buildUpdate() (updateJSON string, err error) {
