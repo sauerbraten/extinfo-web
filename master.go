@@ -12,32 +12,29 @@ import (
 	"github.com/sauerbraten/extinfo"
 )
 
+const DefaultMasterServerAddress = "sauerbraten.org:28787"
+
 type MasterServer struct {
 	Publisher
 
-	Connection    net.Conn
+	ServerAddress string
 	ServerStates  map[string]extinfo.BasicInfo
 	ServerUpdates chan Update
 }
 
-func NewMasterServerAsPublisher(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, error) {
-	conn, err := net.DialTimeout("tcp", addr, 15*time.Second)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	publisher, updates, stop := NewPublisher(addr, notify)
-
+func NewMasterServerAsPublisher(publisher Publisher, conf ...func(*MasterServer)) {
 	ms := &MasterServer{
-		Connection: conn,
-		Publisher:  publisher,
+		Publisher:     publisher,
+		ServerStates:  map[string]extinfo.BasicInfo{},
+		ServerUpdates: make(chan Update),
 	}
 
-	ms.refreshServers()
+	for _, configFunc := range conf {
+		configFunc(ms)
+	}
 
+	go ms.refreshServers()
 	go ms.loop()
-
-	return updates, stop, nil
 }
 
 func (ms *MasterServer) loop() {
@@ -81,6 +78,9 @@ func (ms *MasterServer) loop() {
 		case upd := <-ms.ServerUpdates:
 			ms.storeServerUpdate(upd)
 		case <-ms.Stop:
+			for topic, _ := range ms.ServerStates {
+				pubsub.Unsubscribe(ms.ServerUpdates, topic)
+			}
 			return
 		}
 	}
@@ -98,12 +98,18 @@ func (ms *MasterServer) storeServerUpdate(upd Update) {
 }
 
 func (ms *MasterServer) refreshServers() error {
-	in := bufio.NewScanner(ms.Connection)
-	out := bufio.NewWriter(ms.Connection)
+	conn, err := net.DialTimeout("tcp", ms.ServerAddress, 15*time.Second)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	in := bufio.NewScanner(conn)
+	out := bufio.NewWriter(conn)
 
 	// request new list
 
-	_, err := out.WriteString("list\n")
+	_, err = out.WriteString("list\n")
 	if err != nil {
 		return err
 	}
@@ -126,19 +132,18 @@ func (ms *MasterServer) refreshServers() error {
 		msg = strings.TrimPrefix(msg, "addserver ")
 		msg = strings.TrimSpace(msg)
 
-		hostAndPort, err := GetCanonicalHostAndPort(msg, " ")
-		if err != nil {
-			log.Println("error processing addserver line ("+msg+")", err)
-			continue
-		}
-
-		addr := hostAndPort.String()
+		addr := strings.Replace(msg, " ", ":", -1)
 
 		// keep old state if possible
 		updatedList[addr] = ms.ServerStates[addr]
 
 		// subscribe to updates from that server
-		err = pubsub.CreateTopicIfNotExists(addr, NewPoller)
+		err = pubsub.CreateTopicIfNotExists(addr, func(publisher Publisher) error {
+			return NewPoller(
+				publisher,
+				func(p *Poller) { p.Address = addr },
+			)
+		})
 		if err != nil {
 			log.Println("error creating poller for "+addr+":", err)
 			continue

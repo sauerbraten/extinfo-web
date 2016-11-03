@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"time"
 
 	"github.com/sauerbraten/extinfo"
@@ -12,50 +11,38 @@ import (
 type Poller struct {
 	Publisher
 
-	Server        *extinfo.Server
-	Configuration <-chan func(*Poller)
-	WithTeams     bool
-	WithPlayers   bool
+	Server      *extinfo.Server
+	Address     string
+	WithTeams   bool
+	WithPlayers bool
 }
 
-func NewConfigurablePoller(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, chan<- func(*Poller), error) {
-	hostAndPort, err := HostAndPortFromString(addr, ":")
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	server, err := extinfo.NewServer(hostAndPort.Host, hostAndPort.Port, 5*time.Second)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	publisher, updates, stop := NewPublisher(addr, notify)
-
-	conf := make(chan func(*Poller))
-
+func NewPoller(publisher Publisher, config ...func(*Poller)) error {
 	poller := &Poller{
-		Server:        server,
-		Configuration: conf,
-		Publisher:     publisher,
+		Publisher: publisher,
 	}
 
-	err = poller.poll()
+	for _, configFunc := range config {
+		configFunc(poller)
+	}
+
+	hostAndPort, err := HostAndPortFromString(poller.Address, ":")
 	if err != nil {
-		return nil, nil, nil, err
+		return err
 	}
 
+	poller.Server, err = extinfo.NewServer(hostAndPort.Host, hostAndPort.Port, 5*time.Second)
+	if err != nil {
+		return err
+	}
+
+	go poller.poll()
 	go poller.pollForever()
 
-	return updates, stop, conf, nil
-}
-
-func NewPoller(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, error) {
-	upd, stop, _, err := NewConfigurablePoller(addr, notify)
-	return upd, stop, err
+	return nil
 }
 
 func (p *Poller) pollForever() {
-	errorCount := 0
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	defer p.Close()
@@ -65,19 +52,11 @@ func (p *Poller) pollForever() {
 		case <-ticker.C:
 			err := p.poll()
 			if err != nil {
-				log.Println(err)
-				errorCount++
-				if errorCount > 10 {
-					log.Println("problem with server, stopping poller")
-					return
-				}
-			} else {
-				errorCount = 0
+				// don't print errors, there's too many...
+				return
 			}
 		case <-p.Stop:
 			return
-		case configuration := <-p.Configuration:
-			configuration(p)
 		}
 	}
 }

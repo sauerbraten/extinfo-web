@@ -19,12 +19,12 @@
 	<header id='serverinfo' v-bind:style='{ background: makeBackgroundString(info.map) }'>
 		<h1>{{info.description}}</h1>
 		<h3>
-			<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong> | {{int2string(info.secsLeft)}} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
+			<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong> | {{formatTimeLeft(info.secsLeft)}} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
 		</h3>
 	</header>
 
 	<main>
-		<div id='teams' class='players'>
+		<div id='teams' class='teams'>
 			<div class='team-table' v-for='team in teams'>
 				<h2>{{team.name}}: {{team.score}}</h2>
 				<table>
@@ -50,9 +50,41 @@
 			</div>
 		</div>
 
-		<div id='spectators' class='spectators' v-show='spectators.length > 0'>
+		<div id='spectators' class='centered' v-show='spectators.length > 0'>
 			<h2>spectators</h2>
 			<span class='spectator' v-for='spectator in spectators'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
+		</div>
+
+		<div id='serverlist'>
+			<h1>Server Browser</h1>
+			<table>
+				<thead>
+					<tr>
+						<td>Players</td>
+						<td>Description</td>
+						<td>Mode</td>
+						<td>Map</td>
+						<td>Time Left</td>
+						<td>MasterMode</td>
+					</tr>
+				</thead>
+				<tbody>
+					<tr v-if='!servers.length'>
+						<td colspan=6 class="centered">loading…</td>
+					</tr>
+					<tr v-for='server in servers'>
+						<td class='count'>{{server.numberOfClients}}</td>
+						<td v-if='isTeamMode(server.gameMode)'>
+							<a v-bind:href='"#"+server.address'>{{server.description}}</a>
+						</td>
+						<td v-else>{{server.description}}</td>
+						<td>{{server.gameMode}}</td>
+						<td>{{server.map}}</td>
+						<td>{{formatTimeLeft(server.secsLeft)}}</td>
+						<td>{{server.masterMode}}</td>
+					</tr>
+				</tbody>
+			</table>
 		</div>
 	</main>
 
@@ -63,22 +95,32 @@
 	</footer>
 
 	<script>
+		function formatTimeLeft(secondsLeft) {
+					var pad = function(i) { return (i < 10 ? '0' : '') + i }
+					var minutes = pad(Math.floor(secondsLeft/60))
+					var seconds = pad(secondsLeft % 60)
+					return minutes + ':' + seconds
+				}
+
 		var model = {
-			info: {map: 'firstevermap'},
+			info: {
+				description: 'loading…',
+				gameMode: 'ffa',
+				map: 'firstevermap',
+				secsLeft: 0,
+				masterMode: 'open',
+				numberOfClients: 0,
+				maxNumberOfClients: 0
+			},
 			teams: {},
 			spectators: [],
+			servers: [],
 		}
 
 		new Vue({
 			el: '#serverinfo',
 			data: model,
 			methods: {
-				int2string: function(secondsLeft) {
-					var pad = function(i) { return (i < 10 ? '0' : '') + i }
-					var minutes = pad(Math.floor(secondsLeft/60))
-					var seconds = pad(secondsLeft % 60)
-					return minutes + ':' + seconds
-				},
 				makeBackgroundString: function(map) {
 					return 'url("//sauertracker.net/images/mapshots/' + map + '.jpg") no-repeat center center / cover'
 				}
@@ -94,6 +136,18 @@
 			el: '#spectators',
 			data: model,
 		})
+
+		new Vue({
+			el:'#serverlist',
+			data: model,
+			methods: {
+				isTeamMode: function(mode) {
+					return !(['ffa', 'coop edit', 'instagib', 'efficiency', 'tactics'].includes(mode))
+				}
+
+			}
+		})
 	</script>
 </body>
+
 </html>

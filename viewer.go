@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
@@ -20,39 +19,53 @@ type Viewer struct {
 func (v *Viewer) writeUpdatesUntilClose() {
 	for message := range v.Messages {
 		if err := v.WriteMessage(websocket.TextMessage, message.Content); err != nil {
-			log.Println("forcing unregister:", err)
-			pubsub.Unsubscribe(v.Messages, v.ServerAddress)
-			break
+			log.Println("sending failed: forcing unregister for viewer", v.Messages)
+			return
 		}
 	}
 }
 
 // handles websocket connections subscribing for server state updates
 func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-	subscribeWebsocket(resp, req, params.ByName("addr"), func(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, error) {
-		updates, stop, conf, err := NewConfigurablePoller(addr, notify)
-		if err == nil {
-			conf <- func(p *Poller) { p.WithPlayers = true }
-			conf <- func(p *Poller) { p.WithTeams = true }
-		}
-		return updates, stop, err
+	addr := params.ByName("addr")
+	topic := addr + " (detailed)"
+
+	log.Println(req.RemoteAddr, "started watching", addr)
+
+	subscribeWebsocket(resp, req, topic, func(publisher Publisher) error {
+		log.Println("starting to poll", addr)
+		return NewPoller(
+			publisher,
+			func(p *Poller) { p.WithPlayers = true },
+			func(p *Poller) { p.WithTeams = true },
+			func(p *Poller) { p.Address = addr },
+		)
 	})
+
+	log.Println(req.RemoteAddr, "stopped watching", addr)
 }
 
 func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-	subscribeWebsocket(resp, req, "sauerbraten.org:28787", NewMasterServerAsPublisher)
+	log.Println(req.RemoteAddr, "started watching the master server list")
+
+	subscribeWebsocket(resp, req, DefaultMasterServerAddress, func(publisher Publisher) error {
+		log.Println("starting to poll the master server")
+		NewMasterServerAsPublisher(publisher, func(ms *MasterServer) { ms.ServerAddress = DefaultMasterServerAddress })
+		return nil
+	})
+
+	log.Println(req.RemoteAddr, "stopped watching the master server list")
 }
 
-func subscribeWebsocket(resp http.ResponseWriter, req *http.Request, topic string, createPublisher func(string, chan<- string) (<-chan []byte, chan<- struct{}, error)) {
-	err := pubsub.CreateTopicIfNotExists(topic, createPublisher)
+func subscribeWebsocket(resp http.ResponseWriter, req *http.Request, topic string, useNewPublisher func(Publisher) error) {
+	err := pubsub.CreateTopicIfNotExists(topic, useNewPublisher)
 	if err != nil {
-		log.Println("creating publisher for "+topic+" failed:", err)
+		log.Println("creating poller for "+topic+" failed:", err)
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	defer pubsub.stopPublisherIfNoSubs(topic)
 
-	messages := make(chan Update, 1)
+	messages := make(chan Update)
 
 	conn, err := upgrader.Upgrade(resp, req, nil)
 	if err != nil {
@@ -70,6 +83,7 @@ func subscribeWebsocket(resp http.ResponseWriter, req *http.Request, topic strin
 
 	viewer.writeUpdatesUntilClose()
 
-	viewer.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(5*time.Second))
-	viewer.Close()
+	pubsub.Unsubscribe(messages, topic)
+
+	_ = viewer.Close()
 }

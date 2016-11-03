@@ -1,6 +1,5 @@
 var sock
-var port = '28785'
-var host = 'pastaland.ovh'
+var addr = 'pastaland.ovh:28785'
 
 function init() {
 	if (!('WebSocket' in window)) {
@@ -8,27 +7,50 @@ function init() {
 		return
 	}
 
-	if (window.location.hash.substring(1).match(/[a-zA-Z0-9\\.]+:[0-9]+/)) {
-		var parts = window.location.hash.substring(1).split(':')
-		host = parts[0]
-		port = parts[1]
-	} else {
-		window.location.hash = host + ":" + port
-	}
+	initmaster()
 
-	initsocket()
+	window.onhashchange = reset
+
+	if (window.location.hash.substring(1).match(/[a-zA-Z0-9\\.]+:[0-9]+/)) {
+		addr = window.location.hash.substring(1)
+		initsocket()
+	} else {
+		window.location.hash = addr
+	}
 }
 
-function initsocket() {
+function reset() {
+	console.log("resetting")
+
 	if (typeof (sock) != 'undefined') {
 		sock.close()
 		sock = null
+
+		document.title = 'loading… – extinfo'
+		model.info = {
+			description: 'loading…',
+			gameMode: 'ffa',
+			map: 'firstevermap',
+			secsLeft: 0,
+			masterMode: 'open',
+			numberOfClients: 0,
+			maxNumberOfClients: 0
+		}
+		model.teams = {}
+		model.spectators = []
 	}
 
-	sock = new WebSocket('ws://' + window.location.host + '/server/'+host+":"+port)
+	if (window.location.hash.substring(1).match(/[a-zA-Z0-9\\.]+:[0-9]+/)) {
+		addr = window.location.hash.substring(1)
+		initsocket()
+	}
+}
 
-	sock.onerror = function() {
-		alert("could not connect to a server at that address!")
+function initsocket() {
+	sock = new WebSocket('ws://' + window.location.host + '/server/' + addr)
+
+	sock.onerror = function () {
+		alert('could not connect to a server at that address!')
 	}
 
 	sock.onmessage = function (m) {
@@ -62,8 +84,22 @@ function initsocket() {
 	}
 }
 
+function initmaster() {
+	master = new WebSocket('ws://' + window.location.host + '/master')
+
+	master.onerror = function () {
+		alert('could not connect to the master server!')
+	}
+
+	master.onmessage = function (m) {
+		var serverlistUpdate = JSON.parse(m.data)
+		serverlistUpdate.sort(serverlistSortingFunction)
+		model.servers = serverlistUpdate
+	}
+}
+
 // frags (descending), then deaths (ascending), then accuracy (descending)
-function scoreboardSortingFunction (a, b) {
+function scoreboardSortingFunction(a, b) {
 	if (a.frags == b.frags) {
 		if (a.deaths == b.deaths) {
 			return b.accuracy - a.accuracy
@@ -73,4 +109,9 @@ function scoreboardSortingFunction (a, b) {
 	} else {
 		return b.frags - a.frags
 	}
+}
+
+// players (descending)
+function serverlistSortingFunction(a, b) {
+	return b.numberOfClients - a.numberOfClients
 }

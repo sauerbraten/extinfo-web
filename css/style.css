@@ -28,7 +28,8 @@ header, main {
 header {
 	background: #555;
 	color: white;
-	text-shadow: 0 0 3px black;
+	text-shadow: 0 0 10px black;
+	box-shadow: 0 0 2px 0px black;
 }
 
 main {
@@ -41,7 +42,7 @@ footer {
 	margin: 2em 0;
 }
 
-.players {
+.teams {
 	display: flex;
 	flex-flow: row wrap;
 	justify-content: space-around;
@@ -88,10 +89,6 @@ td + td {
 	border-left: 1px solid #bbb;
 }
 
-.spectators {
-	text-align: center;
-}
-
 .spectator {
 	display: inline-block;
 	margin: .75em 0;
@@ -107,4 +104,8 @@ a {
 
 .count {
 	text-align: right;
+}
+
+.centered {
+	text-align: center;
 }
