@@ -8,18 +8,20 @@ import (
 
 type PubSub struct {
 	sync.Mutex
-	Publishers  map[string]chan string
-	Subscribers map[string]map[chan string]bool
+	Publishers  map[string]<-chan string          // publishers by topic
+	Stops       map[string]chan<- struct{}        // channels the publishers listen on for a stop signal; indexed by topic
+	Subscribers map[string]map[chan<- string]bool // set of subscribers by topic
 }
 
 func NewPubSub() *PubSub {
 	return &PubSub{
-		Publishers:  map[string]chan string{},
-		Subscribers: map[string]map[chan string]bool{},
+		Publishers:  map[string]<-chan string{},
+		Stops:       map[string]chan<- struct{}{},
+		Subscribers: map[string]map[chan<- string]bool{},
 	}
 }
 
-func (p *PubSub) CreateTopicIfNotExists(topic string, createPublisher func() (chan string, error)) error {
+func (p *PubSub) CreateTopicIfNotExists(topic string, createPublisher func() (<-chan string, chan<- struct{}, error)) error {
 	p.Lock()
 	defer p.Unlock()
 
@@ -27,32 +29,26 @@ func (p *PubSub) CreateTopicIfNotExists(topic string, createPublisher func() (ch
 		return nil
 	}
 
-	pub, err := createPublisher()
+	pub, stop, err := createPublisher()
 	if err != nil {
 		return err
 	}
 
 	p.Publishers[topic] = pub
-	p.Subscribers[topic] = map[chan string]bool{}
+	p.Stops[topic] = stop
+	p.Subscribers[topic] = map[chan<- string]bool{}
 	return nil
 }
 
-func (p *PubSub) removeTopic(topic string) {
-	for subscriber := range p.Subscribers[topic] {
-		close(subscriber)
-	}
-
-	delete(p.Subscribers, topic)
-	delete(p.Publishers, topic)
-}
-
-func (p *PubSub) removeTopicIfNoSubs(topic string) {
+// call only from exported method to ensure p is locked!
+func (p *PubSub) stopPublisherIfNoSubs(topic string) {
 	if subscribers, ok := p.Subscribers[topic]; ok && len(subscribers) == 0 {
-		p.removeTopic(topic)
+		p.Stops[topic] <- struct{}{}
+		close(p.Stops[topic])
 	}
 }
 
-func (p *PubSub) Subscribe(sub chan string, topic string) error {
+func (p *PubSub) Subscribe(sub chan<- string, topic string) error {
 	p.Lock()
 	defer p.Unlock()
 
@@ -64,7 +60,7 @@ func (p *PubSub) Subscribe(sub chan string, topic string) error {
 	return nil
 }
 
-func (p *PubSub) Unsubscribe(sub chan string, topic string) error {
+func (p *PubSub) Unsubscribe(sub chan<- string, topic string) error {
 	p.Lock()
 	defer p.Unlock()
 
@@ -73,7 +69,7 @@ func (p *PubSub) Unsubscribe(sub chan string, topic string) error {
 	}
 
 	delete(p.Subscribers[topic], sub)
-	p.removeTopicIfNoSubs(topic)
+	p.stopPublisherIfNoSubs(topic)
 
 	return nil
 }
@@ -85,7 +81,13 @@ func (p *PubSub) Loop() {
 			select {
 			case message, ok := <-p.Publishers[topic]:
 				if !ok {
-					p.removeTopic(topic)
+					for subscriber := range p.Subscribers[topic] {
+						close(subscriber)
+					}
+
+					delete(p.Subscribers, topic)
+					delete(p.Publishers, topic)
+
 					continue
 				}
 

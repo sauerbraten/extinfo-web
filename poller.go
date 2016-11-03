@@ -10,44 +10,57 @@ import (
 )
 
 type Poller struct {
-	Updates        chan string
-	LastupdateJSON string
 	Server         *extinfo.Server
+	Updates        chan<- string
+	LastupdateJSON string
+	Stop           <-chan struct{}
 }
 
-func NewPollerAsPublisher(hostname string, port int) (chan string, error) {
+func NewPollerAsPublisher(hostname string, port int) (<-chan string, chan<- struct{}, error) {
 	server, err := extinfo.NewServer(hostname, port, 5*time.Second)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	updates := make(chan string, 1)
+	stop := make(chan struct{})
 	poller := &Poller{
-		Updates: make(chan string, 1),
 		Server:  server,
+		Updates: updates,
+		Stop:    stop,
 	}
 
 	poller.poll()
 	go poller.pollForever()
 
-	return poller.Updates, nil
+	return updates, stop, nil
 }
 
 func (p *Poller) pollForever() {
 	errorCount := 0
-	for _ = range time.Tick(5 * time.Second) {
-		if errorCount > 10 {
-			log.Println("problem with server, stopping poller")
+	ticker := time.NewTicker(5 * time.Second)
+	for {
+		select {
+		case <-ticker.C:
+			if errorCount > 10 {
+				log.Println("problem with server, stopping poller")
+				close(p.Updates)
+				ticker.Stop()
+				return
+			}
+
+			err := p.poll()
+
+			if err != nil {
+				log.Println(err)
+				errorCount++
+			} else {
+				errorCount = 0
+			}
+		case <-p.Stop:
 			close(p.Updates)
+			ticker.Stop()
 			return
-		}
-
-		err := p.poll()
-
-		if err != nil {
-			log.Println(err)
-			errorCount++
-		} else {
-			errorCount = 0
 		}
 	}
 }

@@ -18,7 +18,18 @@ type Viewer struct {
 	Messages      chan string
 }
 
-// registers websockets
+// reads messages from the channel and writes them to the websocket
+func (v *Viewer) writeUpdateUntilClose() {
+	for message := range v.Messages {
+		if err := v.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
+			log.Println("forcing unregister:", err)
+			pubsub.Unsubscribe(v.Messages, v.ServerAddress)
+			break
+		}
+	}
+}
+
+// handles websocket connections subscribing for server state updates
 func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	addr := params.ByName("addr")
 
@@ -39,7 +50,7 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 
 	topic := hostname + ":" + strconv.Itoa(port)
 
-	err = pubsub.CreateTopicIfNotExists(topic, func() (chan string, error) {
+	err = pubsub.CreateTopicIfNotExists(topic, func() (<-chan string, chan<- struct{}, error) {
 		return NewPollerAsPublisher(hostname, port)
 	})
 
@@ -69,15 +80,4 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 
 	viewer.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(5*time.Second))
 	viewer.Close()
-}
-
-// reads messages from the channel and writes them to the websocket
-func (v *Viewer) writeUpdateUntilClose() {
-	for message := range v.Messages {
-		if err := v.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
-			log.Println("forcing unregister:", err)
-			pubsub.Unsubscribe(v.Messages, v.ServerAddress)
-			break
-		}
-	}
 }
