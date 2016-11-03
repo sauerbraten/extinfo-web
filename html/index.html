@@ -27,26 +27,28 @@
 		<div id='teams' class='teams'>
 			<div class='team-table' v-for='team in teams'>
 				<h2>{{team.name}}: {{team.score}}</h2>
-				<table>
-					<thead>
-						<tr>
-							<td>Frags</td>
-							<td>Deaths</td>
-							<td>Accuracy</td>
-							<td>Name</td>
-							<td>CN</td>
-						</tr>
-					</thead>
-					<tbody>
-						<tr v-for='player in team.players'>
-							<td class='count'>{{player.frags}}</td>
-							<td class='count'>{{player.deaths}}</td>
-							<td class='count'>{{player.accuracy}}%</td>
-							<td>{{player.name}}</td>
-							<td class='count'>{{player.clientNum}}</td>
-						</tr>
-					</tbody>
-				</table>
+				<div>
+					<table>
+						<thead>
+							<tr>
+								<td>Frags</td>
+								<td>Deaths</td>
+								<td>Accuracy</td>
+								<td>Name</td>
+								<td>CN</td>
+							</tr>
+						</thead>
+						<tbody>
+							<tr v-for='player in team.players'>
+								<td class='count'>{{player.frags}}</td>
+								<td class='count'>{{player.deaths}}</td>
+								<td class='count'>{{player.accuracy}}%</td>
+								<td>{{player.name}}</td>
+								<td class='count'>{{player.clientNum}}</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
 			</div>
 		</div>
 
@@ -55,8 +57,9 @@
 			<span class='spectator' v-for='spectator in spectators'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
 		</div>
 
+		<h1>Server Browser</h1>
+
 		<div id='serverlist'>
-			<h1>Server Browser</h1>
 			<table>
 				<thead>
 					<tr>

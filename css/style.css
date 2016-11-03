@@ -36,10 +36,6 @@ main {
 	flex-grow: 1;
 }
 
-main > * {
-	overflow-x: auto;
-}
-
 footer {
 	flex-flow: row wrap;
 	justify-content: center;
@@ -67,11 +63,10 @@ h3 {
 
 .team-table {
 	flex-basis: 30em;
-	margin: 0 2em;
 }
 
 table {
-	min-width: 100%;
+	/*min-width: 100%;*/
 	border-collapse: collapse;
 }
 
@@ -116,4 +111,9 @@ a {
 
 .centered {
 	text-align: center;
+}
+
+header > *, .teams > *, #serverlist, .team-table > * {
+	overflow-x: auto;
+	white-space: nowrap;
 }
