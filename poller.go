@@ -18,7 +18,7 @@ type Poller struct {
 	WithPlayers   bool
 }
 
-func NewConfigurablePollerAsPublisher(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, chan<- func(*Poller), error) {
+func NewConfigurablePoller(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, chan<- func(*Poller), error) {
 	hostAndPort, err := HostAndPortFromString(addr, ":")
 	if err != nil {
 		return nil, nil, nil, err
@@ -29,19 +29,14 @@ func NewConfigurablePollerAsPublisher(addr string, notify chan<- string) (<-chan
 		return nil, nil, nil, err
 	}
 
-	updates := make(chan []byte, 1)
-	stop := make(chan struct{})
+	publisher, updates, stop := NewPublisher(addr, notify)
+
 	conf := make(chan func(*Poller))
 
 	poller := &Poller{
 		Server:        server,
 		Configuration: conf,
-		Publisher: Publisher{
-			Topic:        addr,
-			NotifyPubSub: notify,
-			Updates:      updates,
-			Stop:         stop,
-		},
+		Publisher:     publisher,
 	}
 
 	err = poller.poll()
@@ -54,8 +49,8 @@ func NewConfigurablePollerAsPublisher(addr string, notify chan<- string) (<-chan
 	return updates, stop, conf, nil
 }
 
-func NewPollerAsPublisher(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, error) {
-	upd, stop, _, err := NewConfigurablePollerAsPublisher(addr, notify)
+func NewPoller(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, error) {
+	upd, stop, _, err := NewConfigurablePoller(addr, notify)
 	return upd, stop, err
 }
 
@@ -63,7 +58,7 @@ func (p *Poller) pollForever() {
 	errorCount := 0
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	defer close(p.Updates)
+	defer p.Close()
 
 	for {
 		select {
@@ -93,8 +88,7 @@ func (p *Poller) poll() error {
 		return err
 	}
 
-	p.NotifyPubSub <- p.Topic
-	p.Updates <- update
+	p.Publish(update)
 
 	return nil
 }

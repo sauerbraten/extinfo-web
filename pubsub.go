@@ -11,10 +11,33 @@ type Update struct {
 }
 
 type Publisher struct {
-	Topic        string
-	NotifyPubSub chan<- string
-	Updates      chan<- []byte
+	topic        string
+	notifyPubSub chan<- string
+	updates      chan<- []byte
 	Stop         <-chan struct{}
+}
+
+func NewPublisher(topic string, notifyPubSub chan<- string) (Publisher, <-chan []byte, chan<- struct{}) {
+	updates := make(chan []byte, 1)
+	stop := make(chan struct{})
+
+	p := Publisher{
+		topic:        topic,
+		notifyPubSub: notifyPubSub,
+		updates:      updates,
+		Stop:         stop,
+	}
+
+	return p, updates, stop
+}
+
+func (p *Publisher) Publish(update []byte) {
+	p.notifyPubSub <- p.topic
+	p.updates <- update
+}
+
+func (p *Publisher) Close() {
+	close(p.updates)
 }
 
 type PubSub struct {

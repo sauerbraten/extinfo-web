@@ -30,7 +30,7 @@ func (v *Viewer) writeUpdatesUntilClose() {
 // handles websocket connections subscribing for server state updates
 func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	subscribeWebsocket(resp, req, params.ByName("addr"), func(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, error) {
-		updates, stop, conf, err := NewConfigurablePollerAsPublisher(addr, notify)
+		updates, stop, conf, err := NewConfigurablePoller(addr, notify)
 		if err == nil {
 			conf <- func(p *Poller) { p.WithPlayers = true }
 			conf <- func(p *Poller) { p.WithTeams = true }

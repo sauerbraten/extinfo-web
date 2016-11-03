@@ -12,8 +12,6 @@ import (
 	"github.com/sauerbraten/extinfo"
 )
 
-const MasterServerTopic = "master"
-
 type MasterServer struct {
 	Publisher
 
@@ -28,16 +26,11 @@ func NewMasterServerAsPublisher(addr string, notify chan<- string) (<-chan []byt
 		return nil, nil, err
 	}
 
-	updates := make(chan []byte, 1)
-	stop := make(chan struct{})
+	publisher, updates, stop := NewPublisher(addr, notify)
 
 	ms := &MasterServer{
 		Connection: conn,
-		Publisher: Publisher{
-			Updates:      updates,
-			NotifyPubSub: notify,
-			Stop:         stop,
-		},
+		Publisher:  publisher,
 	}
 
 	ms.refreshServers()
@@ -57,7 +50,7 @@ func (ms *MasterServer) loop() {
 	refreshTicker := time.NewTicker(30 * time.Second)
 	defer refreshTicker.Stop()
 
-	defer close(ms.Updates)
+	defer ms.Close()
 
 	for {
 		select {
@@ -145,7 +138,7 @@ func (ms *MasterServer) refreshServers() error {
 		updatedList[addr] = ms.ServerStates[addr]
 
 		// subscribe to updates from that server
-		err = pubsub.CreateTopicIfNotExists(addr, NewPollerAsPublisher)
+		err = pubsub.CreateTopicIfNotExists(addr, NewPoller)
 		if err != nil {
 			log.Println("error creating poller for "+addr+":", err)
 			continue
@@ -169,8 +162,7 @@ func (ms *MasterServer) update() error {
 		return err
 	}
 
-	ms.NotifyPubSub <- MasterServerTopic
-	ms.Updates <- update
+	ms.Publish(update)
 
 	return nil
 }
