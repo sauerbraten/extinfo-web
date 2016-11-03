@@ -20,8 +20,6 @@ function init() {
 }
 
 function reset() {
-	console.log("resetting")
-
 	if (typeof (sock) != 'undefined') {
 		sock.close()
 		sock = null
@@ -40,10 +38,10 @@ function reset() {
 		model.spectators = []
 	}
 
-	if (window.location.hash.substring(1).match(/[a-zA-Z0-9\\.]+:[0-9]+/)) {
-		addr = window.location.hash.substring(1)
-		initsocket()
-	}
+	addr = window.location.hash.substring(1)
+	initsocket()
+
+	window.scrollTo(window.scrollLeft, 0)
 }
 
 function initsocket() {

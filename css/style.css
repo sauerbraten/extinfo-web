@@ -36,6 +36,10 @@ main {
 	flex-grow: 1;
 }
 
+main > * {
+	overflow-x: auto;
+}
+
 footer {
 	flex-flow: row wrap;
 	justify-content: center;
