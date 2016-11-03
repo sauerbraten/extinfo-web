@@ -92,7 +92,7 @@ function initmaster() {
 	master.onmessage = function (m) {
 		var serverlistUpdate = JSON.parse(m.data)
 		serverlistUpdate.sort(serverlistSortingFunction)
-		model.servers = serverlistUpdate
+		model.servers = serverlistUpdate.filter(hasPlayers)
 	}
 }
 
@@ -112,4 +112,8 @@ function scoreboardSortingFunction(a, b) {
 // players (descending)
 function serverlistSortingFunction(a, b) {
 	return b.numberOfClients - a.numberOfClients
+}
+
+function hasPlayers(server) {
+	return server.numberOfClients > 0
 }

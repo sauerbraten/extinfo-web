@@ -30,10 +30,12 @@ header {
 	color: white;
 	text-shadow: 0 0 10px black;
 	box-shadow: 0 0 2px 0px black;
+	padding-bottom: 2em;
 }
 
 main {
 	flex-grow: 1;
+	margin: 1em 0;
 }
 
 footer {
