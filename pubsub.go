@@ -3,25 +3,44 @@ package main
 import (
 	"errors"
 	"sync"
-	"time"
 )
+
+type Update struct {
+	Topic   string
+	Content []byte
+}
+
+type Publisher struct {
+	Topic        string
+	NotifyPubSub chan<- string
+	Updates      chan<- []byte
+	Stop         <-chan struct{}
+}
 
 type PubSub struct {
 	sync.Mutex
-	Publishers  map[string]<-chan string          // publishers by topic
+	Publishers  map[string]<-chan []byte          // publishers' update channel by topic
 	Stops       map[string]chan<- struct{}        // channels the publishers listen on for a stop signal; indexed by topic
-	Subscribers map[string]map[chan<- string]bool // set of subscribers by topic
+	Subscribers map[string]map[chan<- Update]bool // set of subscribers by topic
+
+	notifyAboutTopic chan string // channel on which publishers notify PubSub about news for a certain topic
 }
 
 func NewPubSub() *PubSub {
 	return &PubSub{
-		Publishers:  map[string]<-chan string{},
-		Stops:       map[string]chan<- struct{}{},
-		Subscribers: map[string]map[chan<- string]bool{},
+		Publishers:       map[string]<-chan []byte{},
+		Stops:            map[string]chan<- struct{}{},
+		Subscribers:      map[string]map[chan<- Update]bool{},
+		notifyAboutTopic: make(chan string, 10),
 	}
 }
 
-func (p *PubSub) CreateTopicIfNotExists(topic string, createPublisher func() (<-chan string, chan<- struct{}, error)) error {
+// CreateTopicIfNotExists returns nil if there's already a publisher for the specified topic. Otherwise, it creates a publisher using the createPublisher function,
+// passing it the topic and a notifications channel. Everytime the publisher wants to send data about a topic, he has to get the attention of PubSub's main loop by
+// sending the topic into the notificatino channel.
+// The createPublisher function has to return the receiving end of a channel on which it sends its updates, the sending end of a channel on which it listens for a
+// stop signal, and an error if creating the publisher failed. That error is returned to the caller of CreateTopicIfNotExists.
+func (p *PubSub) CreateTopicIfNotExists(topic string, createPublisher func(topic string, notify chan<- string) (<-chan []byte, chan<- struct{}, error)) error {
 	p.Lock()
 	defer p.Unlock()
 
@@ -29,14 +48,14 @@ func (p *PubSub) CreateTopicIfNotExists(topic string, createPublisher func() (<-
 		return nil
 	}
 
-	pub, stop, err := createPublisher()
+	pub, stop, err := createPublisher(topic, p.notifyAboutTopic)
 	if err != nil {
 		return err
 	}
 
 	p.Publishers[topic] = pub
 	p.Stops[topic] = stop
-	p.Subscribers[topic] = map[chan<- string]bool{}
+	p.Subscribers[topic] = map[chan<- Update]bool{}
 	return nil
 }
 
@@ -48,7 +67,7 @@ func (p *PubSub) stopPublisherIfNoSubs(topic string) {
 	}
 }
 
-func (p *PubSub) Subscribe(sub chan<- string, topic string) error {
+func (p *PubSub) Subscribe(sub chan<- Update, topic string) error {
 	p.Lock()
 	defer p.Unlock()
 
@@ -60,7 +79,7 @@ func (p *PubSub) Subscribe(sub chan<- string, topic string) error {
 	return nil
 }
 
-func (p *PubSub) Unsubscribe(sub chan<- string, topic string) error {
+func (p *PubSub) Unsubscribe(sub chan<- Update, topic string) error {
 	p.Lock()
 	defer p.Unlock()
 
@@ -76,28 +95,29 @@ func (p *PubSub) Unsubscribe(sub chan<- string, topic string) error {
 
 func (p *PubSub) Loop() {
 	for {
+		topic := <-p.notifyAboutTopic
+
 		p.Lock()
-		for topic, subscribers := range p.Subscribers {
-			select {
-			case message, ok := <-p.Publishers[topic]:
-				if !ok {
-					for subscriber := range p.Subscribers[topic] {
-						close(subscriber)
-					}
 
-					delete(p.Subscribers, topic)
-					delete(p.Publishers, topic)
+		message, ok := <-p.Publishers[topic]
+		if !ok {
+			for subscriber := range p.Subscribers[topic] {
+				close(subscriber)
+			}
 
-					continue
-				}
+			delete(p.Subscribers, topic)
+			delete(p.Publishers, topic)
 
-				for subscriber := range subscribers {
-					subscriber <- message
-				}
-			case <-time.After(time.Millisecond):
-				// wait at most 1ms before moving on to the next publisher
+			continue
+		}
+
+		for subscriber := range p.Subscribers[topic] {
+			subscriber <- Update{
+				Topic:   topic,
+				Content: message,
 			}
 		}
+
 		p.Unlock()
 	}
 }

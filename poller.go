@@ -10,27 +10,43 @@ import (
 )
 
 type Poller struct {
-	Server         *extinfo.Server
-	Updates        chan<- string
-	LastupdateJSON string
-	Stop           <-chan struct{}
+	Publisher
+
+	Server        *extinfo.Server
+	Configuration <-chan func(*Poller)
+	WithTeams     bool
+	WithPlayers   bool
 }
 
-func NewPollerAsPublisher(hostname string, port int) (<-chan string, chan<- struct{}, error) {
-	server, err := extinfo.NewServer(hostname, port, 5*time.Second)
+func NewPollerAsPublisher(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, error) {
+	hostAndPort, err := HostAndPortFromString(addr, ":")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	updates := make(chan string, 1)
-	stop := make(chan struct{})
-	poller := &Poller{
-		Server:  server,
-		Updates: updates,
-		Stop:    stop,
+	server, err := extinfo.NewServer(hostAndPort.Host, hostAndPort.Port, 5*time.Second)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	poller.poll()
+	updates := make(chan []byte, 1)
+	stop := make(chan struct{})
+
+	poller := &Poller{
+		Server: server,
+		Publisher: Publisher{
+			Topic:        addr,
+			NotifyPubSub: notify,
+			Updates:      updates,
+			Stop:         stop,
+		},
+	}
+
+	err = poller.poll()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	go poller.pollForever()
 
 	return updates, stop, nil
@@ -39,79 +55,72 @@ func NewPollerAsPublisher(hostname string, port int) (<-chan string, chan<- stru
 func (p *Poller) pollForever() {
 	errorCount := 0
 	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	defer close(p.Updates)
+
 	for {
 		select {
 		case <-ticker.C:
-			if errorCount > 10 {
-				log.Println("problem with server, stopping poller")
-				close(p.Updates)
-				ticker.Stop()
-				return
-			}
-
 			err := p.poll()
-
 			if err != nil {
 				log.Println(err)
 				errorCount++
+				if errorCount > 10 {
+					log.Println("problem with server, stopping poller")
+					return
+				}
 			} else {
 				errorCount = 0
 			}
 		case <-p.Stop:
-			close(p.Updates)
-			ticker.Stop()
 			return
+		case configuration := <-p.Configuration:
+			configuration(p)
 		}
 	}
 }
 
-func (p *Poller) poll() (err error) {
-	p.LastupdateJSON, err = p.buildUpdate()
+func (p *Poller) poll() error {
+	update, err := p.buildUpdate()
 	if err != nil {
-		return
+		return err
 	}
 
-	p.Updates <- p.LastupdateJSON
-	return
+	p.NotifyPubSub <- p.Topic
+	p.Updates <- update
+
+	return nil
 }
 
-type Update struct {
+type ServerStateUpdate struct {
 	ServerInfo extinfo.BasicInfo            `json:"serverinfo"`
 	Teams      map[string]extinfo.TeamScore `json:"teams"`
 	Players    map[int]extinfo.ClientInfo   `json:"players"`
 }
 
-func (p *Poller) buildUpdate() (updateJSON string, err error) {
-	basicInfo, err := p.Server.GetBasicInfo()
+func (p *Poller) buildUpdate() ([]byte, error) {
+	update := ServerStateUpdate{}
+	var err error
+
+	update.ServerInfo, err = p.Server.GetBasicInfo()
 	if err != nil {
-		err = errors.New("error getting basic info from server: " + err.Error())
-		return
+		return nil, errors.New("error getting basic info from server: " + err.Error())
 	}
 
-	teamScoresInfo, err := p.Server.GetTeamScores()
-	if err != nil {
-		err = errors.New("error getting info about team scores from server:" + err.Error())
-		return
+	if p.WithTeams {
+		teams, err := p.Server.GetTeamScores()
+		if err != nil {
+			return nil, errors.New("error getting info about team scores from server: " + err.Error())
+		}
+		update.Teams = teams.Scores
 	}
 
-	clientsInfo, err := p.Server.GetAllClientInfo()
-	if err != nil {
-		err = errors.New("error getting info about all clients from server:" + err.Error())
-		return
+	if p.WithPlayers {
+		update.Players, err = p.Server.GetAllClientInfo()
+		if err != nil {
+			return nil, errors.New("error getting info about all clients from server: " + err.Error())
+		}
 	}
 
-	var update []byte
-	update, err = json.Marshal(Update{
-		ServerInfo: basicInfo,
-		Teams:      teamScoresInfo.Scores,
-		Players:    clientsInfo,
-	})
-
-	if err != nil {
-		err = errors.New("error marshaling update:" + err.Error())
-	} else {
-		updateJSON = string(update)
-	}
-
-	return
+	return json.Marshal(update)
 }

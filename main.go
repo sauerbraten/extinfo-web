@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"net"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -34,7 +33,7 @@ func main() {
 	r.ServeFiles("/css/*filepath", http.Dir("css"))
 	r.ServeFiles("/js/*filepath", http.Dir("js"))
 
-	//r.GET("/master", watchMasterServerList)
+	r.GET("/master", watchMaster)
 	r.GET("/server/:addr", watchServer)
 
 	log.Println("server listening on http://localhost:8080/")
@@ -45,13 +44,4 @@ func main() {
 
 func home(resp http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	http.ServeFile(resp, req, "html/index.html")
-}
-
-func getCanonicalHostname(hostname string) string {
-	names, err := net.LookupAddr(hostname)
-	if err != nil {
-		return hostname
-	}
-
-	return names[0][:len(hostname)-1] // cut off trailing '.'
 }

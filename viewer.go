@@ -3,8 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -15,13 +13,13 @@ import (
 type Viewer struct {
 	*websocket.Conn
 	ServerAddress string
-	Messages      chan string
+	Messages      chan Update
 }
 
 // reads messages from the channel and writes them to the websocket
-func (v *Viewer) writeUpdateUntilClose() {
+func (v *Viewer) writeUpdatesUntilClose() {
 	for message := range v.Messages {
-		if err := v.WriteMessage(websocket.TextMessage, []byte(message)); err != nil {
+		if err := v.WriteMessage(websocket.TextMessage, message.Content); err != nil {
 			log.Println("forcing unregister:", err)
 			pubsub.Unsubscribe(v.Messages, v.ServerAddress)
 			break
@@ -31,36 +29,23 @@ func (v *Viewer) writeUpdateUntilClose() {
 
 // handles websocket connections subscribing for server state updates
 func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-	addr := params.ByName("addr")
+	subscribeWebsocket(resp, req, params.ByName("addr"), NewPollerAsPublisher)
+}
 
-	log.Println(addr)
+func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	subscribeWebsocket(resp, req, "sauerbraten.org:28787", NewMasterServerAsPublisher)
+}
 
-	addressParts := strings.Split(addr, ":")
-	if len(addressParts) != 2 {
-		resp.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	hostname := getCanonicalHostname(addressParts[0])
-	port, err := strconv.Atoi(addressParts[1])
+func subscribeWebsocket(resp http.ResponseWriter, req *http.Request, topic string, createPublisher func(string, chan<- string) (<-chan []byte, chan<- struct{}, error)) {
+	err := pubsub.CreateTopicIfNotExists(topic, createPublisher)
 	if err != nil {
-		resp.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	topic := hostname + ":" + strconv.Itoa(port)
-
-	err = pubsub.CreateTopicIfNotExists(topic, func() (<-chan string, chan<- struct{}, error) {
-		return NewPollerAsPublisher(hostname, port)
-	})
-
-	if err != nil {
-		log.Println(err)
+		log.Println("creating publisher for "+topic+" failed:", err)
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	defer pubsub.stopPublisherIfNoSubs(topic)
 
-	messages := make(chan string, 1)
+	messages := make(chan Update, 1)
 
 	conn, err := upgrader.Upgrade(resp, req, nil)
 	if err != nil {
@@ -76,7 +61,7 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 
 	pubsub.Subscribe(messages, topic)
 
-	viewer.writeUpdateUntilClose()
+	viewer.writeUpdatesUntilClose()
 
 	viewer.WriteControl(websocket.CloseMessage, []byte{}, time.Now().Add(5*time.Second))
 	viewer.Close()
