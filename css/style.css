@@ -14,15 +14,21 @@ body {
 	margin: 0 auto;
 }
 
-
-header, main, footer {
-	display: flex;
-	padding: 0 .5em;
+main, aside {
+	margin-bottom: 2em;
 }
 
-header, main {
+main, header, footer {
+	display: flex;
+}
+
+main, header {
 	flex-flow: column nowrap;
 	align-items: stretch;
+}
+
+main {
+	flex-grow: 1;
 }
 
 header {
@@ -30,12 +36,7 @@ header {
 	color: white;
 	text-shadow: 0 0 10px black;
 	box-shadow: 0 0 2px 0px black;
-	padding-bottom: 2em;
-}
-
-main {
-	flex-grow: 1;
-	margin: 1em 0;
+	padding-bottom: 1em;
 }
 
 footer {
@@ -48,6 +49,14 @@ footer {
 	display: flex;
 	flex-flow: row wrap;
 	justify-content: space-around;
+}
+
+header, .teams, .spectators {
+	margin-bottom: 1em;
+}
+
+.teams, .spectators, .serverlist, footer {
+	padding: 0 .5em;
 }
 
 h1, h2, h3 {

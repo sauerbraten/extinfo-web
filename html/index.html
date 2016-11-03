@@ -16,14 +16,13 @@
 </head>
 
 <body onload='init();' spellcheck='false'>
-	<header id='serverinfo' v-bind:style='{ background: makeBackgroundString(info.map) }'>
-		<h1>{{info.description}}</h1>
-		<h3>
-			<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong> | {{formatTimeLeft(info.secsLeft)}} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
-		</h3>
-	</header>
-
 	<main>
+		<header id='serverinfo' v-bind:style='{ background: makeBackgroundString(info.map) }'>
+			<h1>{{info.description}}</h1>
+			<h3>
+				<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong> | {{formatTimeLeft(info.secsLeft)}} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
+			</h3>
+		</header>
 		<div id='teams' class='teams'>
 			<div class='team-table' v-for='team in teams'>
 				<h2>{{team.name}}: {{team.score}}</h2>
@@ -52,11 +51,13 @@
 			</div>
 		</div>
 
-		<div id='spectators' class='centered' v-show='spectators.length > 0'>
+		<div id='spectators' class='spectators centered' v-show='spectators.length > 0'>
 			<h2>spectators</h2>
 			<span class='spectator' v-for='spectator in spectators'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
 		</div>
+	</main>
 
+	<aside>
 		<h1>Server Browser</h1>
 
 		<div id='serverlist'>
@@ -89,7 +90,7 @@
 				</tbody>
 			</table>
 		</div>
-	</main>
+	</aside>
 
 	<footer>
 		<small>
