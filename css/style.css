@@ -102,6 +102,10 @@ a {
 	color: #2564a2;
 }
 
+.subtle {
+	color: inherit;
+}
+
 .count {
 	text-align: right;
 }
