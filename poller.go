@@ -18,22 +18,24 @@ type Poller struct {
 	WithPlayers   bool
 }
 
-func NewPollerAsPublisher(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, error) {
+func NewConfigurablePollerAsPublisher(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, chan<- func(*Poller), error) {
 	hostAndPort, err := HostAndPortFromString(addr, ":")
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	server, err := extinfo.NewServer(hostAndPort.Host, hostAndPort.Port, 5*time.Second)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	updates := make(chan []byte, 1)
 	stop := make(chan struct{})
+	conf := make(chan func(*Poller))
 
 	poller := &Poller{
-		Server: server,
+		Server:        server,
+		Configuration: conf,
 		Publisher: Publisher{
 			Topic:        addr,
 			NotifyPubSub: notify,
@@ -44,12 +46,17 @@ func NewPollerAsPublisher(addr string, notify chan<- string) (<-chan []byte, cha
 
 	err = poller.poll()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	go poller.pollForever()
 
-	return updates, stop, nil
+	return updates, stop, conf, nil
+}
+
+func NewPollerAsPublisher(addr string, notify chan<- string) (<-chan []byte, chan<- struct{}, error) {
+	upd, stop, _, err := NewConfigurablePollerAsPublisher(addr, notify)
+	return upd, stop, err
 }
 
 func (p *Poller) pollForever() {
