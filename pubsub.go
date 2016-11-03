@@ -6,24 +6,20 @@ import (
 	"time"
 )
 
-type Topic string
-type Publisher chan string
-type Subscriber chan string
-
 type PubSub struct {
 	sync.Mutex
-	Publishers    map[Topic]Publisher
-	Subscriptions map[Topic]map[Subscriber]bool
+	Publishers  map[string]chan string
+	Subscribers map[string]map[chan string]bool
 }
 
 func NewPubSub() *PubSub {
 	return &PubSub{
-		Publishers:    map[Topic]Publisher{},
-		Subscriptions: map[Topic]map[Subscriber]bool{},
+		Publishers:  map[string]chan string{},
+		Subscribers: map[string]map[chan string]bool{},
 	}
 }
 
-func (p *PubSub) CreateTopicIfNotExists(topic Topic, createPublisher func() (Publisher, error)) error {
+func (p *PubSub) CreateTopicIfNotExists(topic string, createPublisher func() (chan string, error)) error {
 	p.Lock()
 	defer p.Unlock()
 
@@ -37,46 +33,46 @@ func (p *PubSub) CreateTopicIfNotExists(topic Topic, createPublisher func() (Pub
 	}
 
 	p.Publishers[topic] = pub
-	p.Subscriptions[topic] = map[Subscriber]bool{}
+	p.Subscribers[topic] = map[chan string]bool{}
 	return nil
 }
 
-func (p *PubSub) removeTopic(topic Topic) {
-	for subscriber := range p.Subscriptions[topic] {
+func (p *PubSub) removeTopic(topic string) {
+	for subscriber := range p.Subscribers[topic] {
 		close(subscriber)
 	}
 
-	delete(p.Subscriptions, topic)
+	delete(p.Subscribers, topic)
 	delete(p.Publishers, topic)
 }
 
-func (p *PubSub) removeTopicIfNoSubs(topic Topic) {
-	if subscribers, ok := p.Subscriptions[topic]; ok && len(subscribers) == 0 {
+func (p *PubSub) removeTopicIfNoSubs(topic string) {
+	if subscribers, ok := p.Subscribers[topic]; ok && len(subscribers) == 0 {
 		p.removeTopic(topic)
 	}
 }
 
-func (p *PubSub) Subscribe(sub Subscriber, topic Topic) error {
+func (p *PubSub) Subscribe(sub chan string, topic string) error {
 	p.Lock()
 	defer p.Unlock()
 
-	if _, ok := p.Subscriptions[topic]; !ok {
+	if _, ok := p.Subscribers[topic]; !ok {
 		return errors.New("no such topic!")
 	}
 
-	p.Subscriptions[topic][sub] = true
+	p.Subscribers[topic][sub] = true
 	return nil
 }
 
-func (p *PubSub) Unsubscribe(sub Subscriber, topic Topic) error {
+func (p *PubSub) Unsubscribe(sub chan string, topic string) error {
 	p.Lock()
 	defer p.Unlock()
 
-	if _, ok := p.Subscriptions[topic]; !ok {
+	if _, ok := p.Subscribers[topic]; !ok {
 		return errors.New("no such publisher!")
 	}
 
-	delete(p.Subscriptions[topic], sub)
+	delete(p.Subscribers[topic], sub)
 	p.removeTopicIfNoSubs(topic)
 
 	return nil
@@ -85,7 +81,7 @@ func (p *PubSub) Unsubscribe(sub Subscriber, topic Topic) error {
 func (p *PubSub) Loop() {
 	for {
 		p.Lock()
-		for topic, subscribers := range p.Subscriptions {
+		for topic, subscribers := range p.Subscribers {
 			select {
 			case message, ok := <-p.Publishers[topic]:
 				if !ok {

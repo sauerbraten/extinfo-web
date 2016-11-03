@@ -10,28 +10,26 @@ import (
 )
 
 type Poller struct {
-	Updates        Publisher
+	Updates        chan string
 	LastupdateJSON string
 	Server         *extinfo.Server
 }
 
-func NewPollerAsPublisher(hostname string, port int) (pub Publisher, err error) {
+func NewPollerAsPublisher(hostname string, port int) (chan string, error) {
 	server, err := extinfo.NewServer(hostname, port, 5*time.Second)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	poller := &Poller{
-		Updates: Publisher(make(chan string, 1)),
+		Updates: make(chan string, 1),
 		Server:  server,
 	}
 
 	poller.poll()
 	go poller.pollForever()
 
-	pub = poller.Updates
-
-	return
+	return poller.Updates, nil
 }
 
 func (p *Poller) pollForever() {

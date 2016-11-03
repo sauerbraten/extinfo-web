@@ -12,10 +12,7 @@ import (
 const PublicWebInterfaceAddress = "extinfo.sauerworld.org"
 
 var (
-	pubsub *PubSub = &PubSub{
-		Publishers:    map[Topic]Publisher{},
-		Subscriptions: map[Topic]map[Subscriber]bool{},
-	}
+	pubsub *PubSub
 
 	upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -24,6 +21,7 @@ var (
 )
 
 func init() {
+	pubsub = NewPubSub()
 	go pubsub.Loop()
 }
 

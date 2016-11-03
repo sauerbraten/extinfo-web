@@ -14,8 +14,8 @@ import (
 // A connection from a viewer
 type Viewer struct {
 	*websocket.Conn
-	ServerAddress Topic
-	Messages      Subscriber
+	ServerAddress string
+	Messages      chan string
 }
 
 // registers websockets
@@ -37,9 +37,9 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 		return
 	}
 
-	topic := Topic(hostname + ":" + strconv.Itoa(port))
+	topic := hostname + ":" + strconv.Itoa(port)
 
-	err = pubsub.CreateTopicIfNotExists(topic, func() (Publisher, error) {
+	err = pubsub.CreateTopicIfNotExists(topic, func() (chan string, error) {
 		return NewPollerAsPublisher(hostname, port)
 	})
 
@@ -49,9 +49,7 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 		return
 	}
 
-	messages := Subscriber(make(chan string, 1))
-
-	pubsub.Subscribe(messages, topic)
+	messages := make(chan string, 1)
 
 	conn, err := upgrader.Upgrade(resp, req, nil)
 	if err != nil {
