@@ -2,61 +2,53 @@ body {
 	font-family: 'Roboto Mono', monospace;
 	font-size: small;
 
+	max-width: 72em;
+	min-height: 100vh;
+	margin: 0 auto;
+
+	overflow-y: scroll;
+}
+
+body, main, aside, footer, .teams {
 	display: flex;
+}
+
+body, main, aside {
+	flex-grow: 1;
 	flex-flow: column nowrap;
 	align-items: stretch;
 	justify-content: center;
-
-	max-width: 72em;
-	min-height: 100vh;
-	overflow-y: scroll;
-
-	margin: 0 auto;
 }
 
-main, aside {
-	margin-bottom: 2em;
+footer, .teams {
+	flex-flow: row wrap;
+	justify-content: space-around;
 }
 
-main, header, footer {
-	display: flex;
+main, aside, footer {
+	margin: 2em 0;
+	padding: 0 .5em;
 }
 
-main, header {
-	flex-flow: column nowrap;
-	align-items: stretch;
-}
-
-main {
-	flex-grow: 1;
+main > *, aside > * {
+	margin-bottom: 1em;
 }
 
 header {
-	background: #555;
+	background: url('//sauertracker.net/images/mapshots/firstevermap.jpg') no-repeat center center / cover;
 	color: white;
 	text-shadow: 0 0 10px black;
 	box-shadow: 0 0 2px 0px black;
 	padding-bottom: 1em;
 }
 
-footer {
-	flex-flow: row wrap;
-	justify-content: center;
-	margin: 2em 0;
+.team-table {
+	flex-basis: 30em;
 }
 
-.teams {
-	display: flex;
-	flex-flow: row wrap;
-	justify-content: space-around;
-}
-
-header, .teams, .spectators {
-	margin-bottom: 1em;
-}
-
-.teams, .spectators, .serverlist, footer {
-	padding: 0 .5em;
+header > *, .teams > *, .team-table > *, #serverlist {
+	overflow-x: auto;
+	white-space: nowrap;
 }
 
 h1, h2, h3 {
@@ -70,10 +62,6 @@ h1 {
 h3 {
 	font-weight: normal;
 	text-transform: uppercase;
-}
-
-.team-table {
-	flex-basis: 30em;
 }
 
 table {
@@ -99,6 +87,10 @@ td + td {
 	border-left: 1px solid #bbb;
 }
 
+a {
+	color: #2564a2;
+}
+
 .spectator {
 	display: inline-block;
 	margin: .75em 0;
@@ -106,10 +98,6 @@ td + td {
 
 .spectator + .spectator {
 	padding-left: 2em;
-}
-
-a {
-	color: #2564a2;
 }
 
 .subtle {
@@ -122,9 +110,4 @@ a {
 
 .centered {
 	text-align: center;
-}
-
-header > *, .teams > *, #serverlist, .team-table > * {
-	overflow-x: auto;
-	white-space: nowrap;
 }

@@ -94,17 +94,17 @@
 
 	<footer>
 		<small>
-			Sauerbraten server live monitor by pix – <a href='https://github.com/sauerbraten/extinfo-web'>Code</a>
+			Sauerbraten live monitor by pix – <a href='https://github.com/sauerbraten/extinfo-web'>Code on GitHub</a>
 		</small>
 	</footer>
 
 	<script>
 		function formatTimeLeft(secondsLeft) {
-					var pad = function(i) { return (i < 10 ? '0' : '') + i }
-					var minutes = pad(Math.floor(secondsLeft/60))
-					var seconds = pad(secondsLeft % 60)
-					return minutes + ':' + seconds
-				}
+			var pad = function(i) { return (i < 10 ? '0' : '') + i }
+			var minutes = pad(Math.floor(secondsLeft/60))
+			var seconds = pad(secondsLeft % 60)
+			return minutes + ':' + seconds
+		}
 
 		var model = {
 			info: {
@@ -148,7 +148,6 @@
 				isTeamMode: function(mode) {
 					return !(['ffa', 'coop edit', 'instagib', 'efficiency', 'tactics'].includes(mode))
 				}
-
 			}
 		})
 	</script>
