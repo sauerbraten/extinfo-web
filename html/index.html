@@ -61,7 +61,7 @@
 		<h1>Other Servers</h1>
 
 		<div id='serverlist'>
-			<table>
+			<table v-if='servers.length'>
 				<thead>
 					<tr>
 						<td>Players</td>
@@ -73,9 +73,6 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr v-if='!servers.length'>
-						<td colspan=6 class='centered'>loading…</td>
-					</tr>
 					<tr v-for='server in servers'>
 						<td class='count'>{{server.numberOfClients}}</td>
 						<td v-if='isTeamMode(server.gameMode)'>
@@ -89,6 +86,9 @@
 					</tr>
 				</tbody>
 			</table>
+			<h2 v-else>
+				loading…
+			</h2>
 		</div>
 	</aside>
 
