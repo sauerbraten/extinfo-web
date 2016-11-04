@@ -58,8 +58,6 @@
 	</main>
 
 	<aside>
-		<h1>Other Servers</h1>
-
 		<div id='serverlist'>
 			<table v-if='servers.length'>
 				<thead>
@@ -86,9 +84,9 @@
 					</tr>
 				</tbody>
 			</table>
-			<h2 v-else>
-				loading…
-			</h2>
+			<h1 v-else>
+				loading server list …
+			</h1>
 		</div>
 	</aside>
 
@@ -108,7 +106,7 @@
 
 		var model = {
 			info: {
-				description: 'loading…',
+				description: 'loading …',
 				gameMode: 'ffa',
 				map: 'firstevermap',
 				secsLeft: 0,

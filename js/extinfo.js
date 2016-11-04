@@ -24,9 +24,9 @@ function reset() {
 		sock.close()
 		sock = null
 
-		document.title = 'loading… – extinfo'
+		document.title = 'loading … – extinfo'
 		model.info = {
-			description: 'loading…',
+			description: 'loading …',
 			gameMode: 'ffa',
 			map: 'firstevermap',
 			secsLeft: 0,
