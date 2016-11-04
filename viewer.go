@@ -30,7 +30,7 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 	addr := params.ByName("addr")
 	topic := addr + " (detailed)"
 
-	log.Println(req.RemoteAddr, "started watching", addr)
+	log.Println(req.RemoteAddr, "started watching", topic)
 
 	subscribeWebsocket(resp, req, topic, func(publisher Publisher) error {
 		log.Println("starting to poll", addr)

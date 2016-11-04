@@ -52,7 +52,7 @@ func (p *Poller) pollForever() {
 		case <-ticker.C:
 			err := p.poll()
 			if err != nil {
-				// don't print errors, there's too many...
+				// don't print errors, there are too many...
 				return
 			}
 		case <-p.Stop:

@@ -81,15 +81,20 @@ func (p *PubSub) createTopicIfNotExists(topic string, useNewPublisher func(Publi
 }
 
 // call only from exported method to ensure p is locked!
-func (p *PubSub) removeTopicIfNoSubs(topic string) {
+func (p *PubSub) stopPublisherIfNoSubs(topic string) {
 	if subscribers, ok := p.Subscribers[topic]; !ok || len(subscribers) != 0 {
 		return
 	}
 
-	// stop publisher
 	close(p.Stops[topic])
+}
 
-	// remove everything
+// assumes that the publisher closed its updates channel
+func (p *PubSub) removeTopic(topic string) {
+	for _, subscriber := range p.Subscribers[topic] {
+		close(subscriber)
+	}
+
 	delete(p.Subscribers, topic)
 	delete(p.Publishers, topic)
 	delete(p.Stops, topic)
@@ -119,7 +124,7 @@ func (p *PubSub) Unsubscribe(sub <-chan Update, topic string) error {
 	}
 
 	delete(p.Subscribers[topic], sub)
-	p.removeTopicIfNoSubs(topic)
+	p.stopPublisherIfNoSubs(topic)
 
 	return nil
 }
@@ -132,27 +137,20 @@ func (p *PubSub) Loop() {
 			p.Lock()
 
 			message, ok := <-p.Publishers[topic]
-			if !ok {
+			if ok {
 				for _, subscriber := range p.Subscribers[topic] {
-					close(subscriber)
+					select {
+					case subscriber <- Update{
+						Topic:   topic,
+						Content: message,
+					}:
+					case <-time.After(10 * time.Millisecond):
+						// 10ms timeout for each subscriber to receive
+						log.Println("send timed out for subscriber", subscriber)
+					}
 				}
-
-				delete(p.Subscribers, topic)
-				delete(p.Publishers, topic)
-
-				continue
-			}
-
-			for _, subscriber := range p.Subscribers[topic] {
-				select {
-				case subscriber <- Update{
-					Topic:   topic,
-					Content: message,
-				}:
-				case <-time.After(10 * time.Millisecond):
-					// 10ms timeout for each subscriber to receive
-					log.Println("send timed out for subscriber", subscriber)
-				}
+			} else {
+				p.removeTopic(topic)
 			}
 
 			p.Unlock()

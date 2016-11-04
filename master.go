@@ -48,6 +48,11 @@ func (ms *MasterServer) loop() {
 	defer refreshTicker.Stop()
 
 	defer ms.Close()
+	defer func() {
+		for topic := range ms.ServerStates {
+			pubsub.Unsubscribe(ms.ServerUpdates, topic)
+		}
+	}()
 
 	for {
 		select {
@@ -78,9 +83,6 @@ func (ms *MasterServer) loop() {
 		case upd := <-ms.ServerUpdates:
 			ms.storeServerUpdate(upd)
 		case <-ms.Stop:
-			for topic, _ := range ms.ServerStates {
-				pubsub.Unsubscribe(ms.ServerUpdates, topic)
-			}
 			return
 		}
 	}
@@ -149,7 +151,7 @@ func (ms *MasterServer) refreshServers() error {
 			continue
 		}
 
-		// proxy updates from all servers into singe channel
+		// proxy updates from all servers into single channel
 		go func(updates <-chan Update) {
 			for update := range updates {
 				ms.ServerUpdates <- update
