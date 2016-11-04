@@ -34,11 +34,14 @@ func NewMasterServerAsPublisher(publisher pubsub.Publisher, conf ...func(*Master
 		configFunc(ms)
 	}
 
-	go ms.refreshServers()
 	go ms.loop()
 }
 
+// refresh list and update clients, then do both periodically forever
 func (ms *MasterServer) loop() {
+	ms.refreshServers()
+	ms.update()
+
 	masterErrorCount := 0
 	errorCount := 0
 

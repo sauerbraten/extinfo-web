@@ -27,23 +27,25 @@ func NewPoller(publisher pubsub.Publisher, config ...func(*Poller)) error {
 		configFunc(poller)
 	}
 
-	hostAndPort, err := HostAndPortFromString(poller.Address, ":")
+	host, port, err := HostAndPortFromString(poller.Address, ":")
 	if err != nil {
 		return err
 	}
 
-	poller.Server, err = extinfo.NewServer(hostAndPort.Host, hostAndPort.Port, 5*time.Second)
+	poller.Server, err = extinfo.NewServer(host, port, 5*time.Second)
 	if err != nil {
 		return err
 	}
 
-	go poller.poll()
-	go poller.pollForever()
+	go poller.loop()
 
 	return nil
 }
 
-func (p *Poller) pollForever() {
+// poll once immediately, then periodically
+func (p *Poller) loop() {
+	p.poll()
+
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	defer p.Close()
