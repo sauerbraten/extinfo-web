@@ -20,7 +20,7 @@ type Publisher struct {
 }
 
 func NewPublisher(topic string, notifyPubSub chan<- string) (Publisher, <-chan []byte, chan<- struct{}) {
-	updates := make(chan []byte)
+	updates := make(chan []byte, 1)
 	stop := make(chan struct{})
 
 	p := Publisher{
