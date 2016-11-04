@@ -17,7 +17,7 @@ body, main, aside {
 	flex-grow: 1;
 	flex-flow: column nowrap;
 	align-items: stretch;
-	justify-content: center;
+	justify-content: space-between;
 }
 
 footer, .teams {
@@ -26,7 +26,7 @@ footer, .teams {
 }
 
 main, aside, footer {
-	margin: 2em 0;
+	margin: 0 0 2em 0;
 	padding: 0 .5em;
 }
 
