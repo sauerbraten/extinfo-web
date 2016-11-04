@@ -26,12 +26,11 @@ footer, .teams {
 }
 
 main, aside, footer {
-	margin: 0 0 2em 0;
-	padding: 0 .5em;
+	margin-bottom: 2em;
 }
 
-main > *, aside > * {
-	margin-bottom: 1em;
+main > *, aside > *, footer > * {
+	padding: 0 .5em;
 }
 
 header {
@@ -39,7 +38,11 @@ header {
 	color: white;
 	text-shadow: 0 0 10px black;
 	box-shadow: 0 0 2px 0px black;
-	padding-bottom: 1em;
+	margin-bottom: 1em;
+}
+
+aside {
+	color: #666;
 }
 
 .team-table {
@@ -93,7 +96,7 @@ a {
 
 .spectator {
 	display: inline-block;
-	margin: .75em 0;
+	margin: 0 0 .75em 0;
 }
 
 .spectator + .spectator {

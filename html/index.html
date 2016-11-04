@@ -58,7 +58,7 @@
 	</main>
 
 	<aside>
-		<h1>Server Browser</h1>
+		<h1>Other Servers</h1>
 
 		<div id='serverlist'>
 			<table>
@@ -69,7 +69,7 @@
 						<td>Mode</td>
 						<td>Map</td>
 						<td>Time Left</td>
-						<td>MasterMode</td>
+						<td>Master Mode</td>
 					</tr>
 				</thead>
 				<tbody>
@@ -84,7 +84,7 @@
 						<td v-else>{{server.description}}</td>
 						<td>{{server.gameMode}}</td>
 						<td>{{server.map}}</td>
-						<td>{{formatTimeLeft(server.secsLeft)}}</td>
+						<td class='centered'>{{formatTimeLeft(server.secsLeft)}}</td>
 						<td>{{server.masterMode}}</td>
 					</tr>
 				</tbody>
