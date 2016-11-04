@@ -11,18 +11,11 @@ import (
 const PublicWebInterfaceAddress = "extinfo.sauerworld.org"
 
 var (
-	pubsub *PubSub
-
 	upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
 )
-
-func init() {
-	pubsub = NewPubSub()
-	go pubsub.Loop()
-}
 
 func main() {
 	r := httprouter.New()

@@ -6,13 +6,14 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
+	"github.com/sauerbraten/extinfo-web/internal/pubsub"
 )
 
 // A connection from a viewer
 type Viewer struct {
 	*websocket.Conn
 	ServerAddress string
-	Updates       <-chan Update
+	Updates       <-chan pubsub.Update
 }
 
 // reads messages from the channel and writes them to the websocket
@@ -32,7 +33,7 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 
 	log.Println(req.RemoteAddr, "started watching", topic)
 
-	subscribeWebsocket(resp, req, topic, func(publisher Publisher) error {
+	subscribeWebsocket(resp, req, topic, func(publisher pubsub.Publisher) error {
 		log.Println("starting to poll", addr)
 		return NewPoller(
 			publisher,
@@ -48,7 +49,7 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	log.Println(req.RemoteAddr, "started watching the master server list")
 
-	subscribeWebsocket(resp, req, DefaultMasterServerAddress, func(publisher Publisher) error {
+	subscribeWebsocket(resp, req, DefaultMasterServerAddress, func(publisher pubsub.Publisher) error {
 		log.Println("starting to poll the master server")
 		NewMasterServerAsPublisher(publisher, func(ms *MasterServer) { ms.ServerAddress = DefaultMasterServerAddress })
 		return nil
@@ -57,7 +58,7 @@ func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.
 	log.Println(req.RemoteAddr, "stopped watching the master server list")
 }
 
-func subscribeWebsocket(resp http.ResponseWriter, req *http.Request, topic string, useNewPublisher func(Publisher) error) {
+func subscribeWebsocket(resp http.ResponseWriter, req *http.Request, topic string, useNewPublisher func(pubsub.Publisher) error) {
 	updates, err := pubsub.Subscribe(topic, useNewPublisher)
 	if err != nil {
 		log.Println("subscribing for updates on", topic, "failed:", err)

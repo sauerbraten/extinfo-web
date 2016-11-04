@@ -10,23 +10,24 @@ import (
 	"encoding/json"
 
 	"github.com/sauerbraten/extinfo"
+	"github.com/sauerbraten/extinfo-web/internal/pubsub"
 )
 
 const DefaultMasterServerAddress = "sauerbraten.org:28787"
 
 type MasterServer struct {
-	Publisher
+	pubsub.Publisher
 
 	ServerAddress string
 	ServerStates  map[string]extinfo.BasicInfo
-	ServerUpdates chan Update
+	ServerUpdates chan pubsub.Update
 }
 
-func NewMasterServerAsPublisher(publisher Publisher, conf ...func(*MasterServer)) {
+func NewMasterServerAsPublisher(publisher pubsub.Publisher, conf ...func(*MasterServer)) {
 	ms := &MasterServer{
 		Publisher:     publisher,
 		ServerStates:  map[string]extinfo.BasicInfo{},
-		ServerUpdates: make(chan Update),
+		ServerUpdates: make(chan pubsub.Update),
 	}
 
 	for _, configFunc := range conf {
@@ -88,7 +89,7 @@ func (ms *MasterServer) loop() {
 	}
 }
 
-func (ms *MasterServer) storeServerUpdate(upd Update) {
+func (ms *MasterServer) storeServerUpdate(upd pubsub.Update) {
 	serverUpdate := ServerStateUpdate{}
 	err := json.Unmarshal(upd.Content, &serverUpdate)
 	if err != nil {
@@ -140,7 +141,7 @@ func (ms *MasterServer) refreshServers() error {
 		updatedList[addr] = ms.ServerStates[addr]
 
 		// subscribe to updates from that server
-		updates, err := pubsub.Subscribe(addr, func(publisher Publisher) error {
+		updates, err := pubsub.Subscribe(addr, func(publisher pubsub.Publisher) error {
 			return NewPoller(
 				publisher,
 				func(p *Poller) { p.Address = addr },
@@ -152,7 +153,7 @@ func (ms *MasterServer) refreshServers() error {
 		}
 
 		// proxy updates from all servers into single channel
-		go func(updates <-chan Update) {
+		go func(updates <-chan pubsub.Update) {
 			for update := range updates {
 				ms.ServerUpdates <- update
 			}

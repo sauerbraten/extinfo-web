@@ -1,4 +1,4 @@
-package main
+package pubsub
 
 import (
 	"errors"
@@ -12,37 +12,6 @@ type Update struct {
 	Content []byte
 }
 
-type Publisher struct {
-	topic        string
-	notifyPubSub chan<- string
-	updates      chan<- []byte
-	Stop         <-chan struct{}
-}
-
-func NewPublisher(topic string, notifyPubSub chan<- string) (Publisher, <-chan []byte, chan<- struct{}) {
-	updates := make(chan []byte, 1)
-	stop := make(chan struct{})
-
-	p := Publisher{
-		topic:        topic,
-		notifyPubSub: notifyPubSub,
-		updates:      updates,
-		Stop:         stop,
-	}
-
-	return p, updates, stop
-}
-
-func (p *Publisher) Publish(update []byte) {
-	p.notifyPubSub <- p.topic
-	p.updates <- update
-}
-
-func (p *Publisher) Close() {
-	close(p.updates)
-	p.notifyPubSub <- p.topic
-}
-
 type PubSub struct {
 	sync.Mutex
 	Publishers  map[string]<-chan []byte                   // publishers' update channel by topic
@@ -53,22 +22,26 @@ type PubSub struct {
 }
 
 func NewPubSub() *PubSub {
-	return &PubSub{
+	p := &PubSub{
 		Publishers:       map[string]<-chan []byte{},
 		Stops:            map[string]chan<- struct{}{},
 		Subscribers:      map[string]map[<-chan Update]chan<- Update{},
 		notifyAboutTopic: make(chan string),
 	}
+
+	go p.loop()
+
+	return p
 }
 
-// CreateTopicIfNotExists returns nil if there's already a publisher for the specified topic. Otherwise, it creates a publisher and passes it to useNewPublisher.
-// The useNewPublisher function may return an error if using the publisher failed. That error is returned to the caller of CreateTopicIfNotExists.
+var p = NewPubSub()
+
 func (p *PubSub) createTopicIfNotExists(topic string, useNewPublisher func(Publisher) error) error {
 	if _, ok := p.Publishers[topic]; ok {
 		return nil
 	}
 
-	publisher, updates, stop := NewPublisher(topic, pubsub.notifyAboutTopic)
+	publisher, updates, stop := newPublisher(topic, p.notifyAboutTopic)
 	err := useNewPublisher(publisher)
 	if err != nil {
 		return err
@@ -80,7 +53,6 @@ func (p *PubSub) createTopicIfNotExists(topic string, useNewPublisher func(Publi
 	return nil
 }
 
-// call only from exported method to ensure p is locked!
 func (p *PubSub) stopPublisherIfNoSubs(topic string) {
 	if subscribers, ok := p.Subscribers[topic]; !ok || len(subscribers) != 0 {
 		return
@@ -115,6 +87,10 @@ func (p *PubSub) Subscribe(topic string, useNewPublisher func(Publisher) error) 
 	return updates, nil
 }
 
+func Subscribe(topic string, useNewPublisher func(Publisher) error) (<-chan Update, error) {
+	return p.Subscribe(topic, useNewPublisher)
+}
+
 func (p *PubSub) Unsubscribe(sub <-chan Update, topic string) error {
 	p.Lock()
 	defer p.Unlock()
@@ -129,7 +105,11 @@ func (p *PubSub) Unsubscribe(sub <-chan Update, topic string) error {
 	return nil
 }
 
-func (p *PubSub) Loop() {
+func Unsubscribe(sub <-chan Update, topic string) error {
+	return p.Unsubscribe(sub, topic)
+}
+
+func (p *PubSub) loop() {
 	statusTicker := time.NewTicker(1 * time.Minute)
 	for {
 		select {
@@ -156,9 +136,9 @@ func (p *PubSub) Loop() {
 			p.Unlock()
 
 		case <-statusTicker.C:
-			if len(pubsub.Publishers) > 0 {
-				log.Println("polling", len(pubsub.Publishers), "servers")
-				log.Println("serving", len(pubsub.Subscribers), "subscribers")
+			if len(p.Publishers) > 0 {
+				log.Println("polling", len(p.Publishers), "servers")
+				log.Println("serving", len(p.Subscribers), "subscribers")
 			}
 		}
 	}

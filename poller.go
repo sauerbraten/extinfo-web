@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/sauerbraten/extinfo"
+	"github.com/sauerbraten/extinfo-web/internal/pubsub"
 )
 
 type Poller struct {
-	Publisher
+	pubsub.Publisher
 
 	Server      *extinfo.Server
 	Address     string
@@ -17,7 +18,7 @@ type Poller struct {
 	WithPlayers bool
 }
 
-func NewPoller(publisher Publisher, config ...func(*Poller)) error {
+func NewPoller(publisher pubsub.Publisher, config ...func(*Poller)) error {
 	poller := &Poller{
 		Publisher: publisher,
 	}
