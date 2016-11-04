@@ -18,7 +18,7 @@ const DefaultMasterServerAddress = "sauerbraten.org:28787"
 type MasterServer struct {
 	pubsub.Publisher
 
-	ServerAddress string
+	Address       string
 	ServerStates  map[string]extinfo.BasicInfo
 	ServerUpdates chan pubsub.Update
 }
@@ -104,7 +104,7 @@ func (ms *MasterServer) storeServerUpdate(upd pubsub.Update) {
 }
 
 func (ms *MasterServer) refreshServers() error {
-	conn, err := net.DialTimeout("tcp", ms.ServerAddress, 15*time.Second)
+	conn, err := net.DialTimeout("tcp", ms.Address, 15*time.Second)
 	if err != nil {
 		return err
 	}

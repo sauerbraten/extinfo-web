@@ -8,14 +8,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-const PublicWebInterfaceAddress = "extinfo.sauerworld.org"
-
-var (
-	upgrader = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-	}
-)
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
 
 func main() {
 	r := httprouter.New()

@@ -51,7 +51,7 @@ func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.
 
 	subscribeWebsocket(resp, req, DefaultMasterServerAddress, func(publisher pubsub.Publisher) error {
 		log.Println("starting to poll the master server")
-		NewMasterServerAsPublisher(publisher, func(ms *MasterServer) { ms.ServerAddress = DefaultMasterServerAddress })
+		NewMasterServerAsPublisher(publisher, func(ms *MasterServer) { ms.Address = DefaultMasterServerAddress })
 		return nil
 	})
 
