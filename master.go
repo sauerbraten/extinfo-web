@@ -138,22 +138,23 @@ func (ms *MasterServer) refreshServers() error {
 		updatedList[addr] = ms.ServerStates[addr]
 
 		// subscribe to updates from that server
-		err = pubsub.CreateTopicIfNotExists(addr, func(publisher Publisher) error {
+		updates, err := pubsub.Subscribe(addr, func(publisher Publisher) error {
 			return NewPoller(
 				publisher,
 				func(p *Poller) { p.Address = addr },
 			)
 		})
 		if err != nil {
-			log.Println("error creating poller for "+addr+":", err)
-			continue
-		}
-
-		err = pubsub.Subscribe(ms.ServerUpdates, addr)
-		if err != nil {
 			log.Println("error subscribing to updates on "+addr+":", err)
 			continue
 		}
+
+		// proxy updates from all servers into singe channel
+		go func(updates <-chan Update) {
+			for update := range updates {
+				ms.ServerUpdates <- update
+			}
+		}(updates)
 	}
 
 	ms.ServerStates = updatedList

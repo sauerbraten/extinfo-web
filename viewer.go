@@ -12,14 +12,14 @@ import (
 type Viewer struct {
 	*websocket.Conn
 	ServerAddress string
-	Messages      chan Update
+	Updates       <-chan Update
 }
 
 // reads messages from the channel and writes them to the websocket
 func (v *Viewer) writeUpdatesUntilClose() {
-	for message := range v.Messages {
+	for message := range v.Updates {
 		if err := v.WriteMessage(websocket.TextMessage, message.Content); err != nil {
-			log.Println("sending failed: forcing unregister for viewer", v.Messages)
+			log.Println("sending failed: forcing unregister for viewer", v.Updates)
 			return
 		}
 	}
@@ -58,14 +58,12 @@ func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.
 }
 
 func subscribeWebsocket(resp http.ResponseWriter, req *http.Request, topic string, useNewPublisher func(Publisher) error) {
-	err := pubsub.CreateTopicIfNotExists(topic, useNewPublisher)
+	updates, err := pubsub.Subscribe(topic, useNewPublisher)
 	if err != nil {
-		log.Println("creating poller for "+topic+" failed:", err)
+		log.Println("subscribing for updates on", topic, "failed:", err)
 		resp.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	messages := make(chan Update)
 
 	conn, err := upgrader.Upgrade(resp, req, nil)
 	if err != nil {
@@ -76,14 +74,12 @@ func subscribeWebsocket(resp http.ResponseWriter, req *http.Request, topic strin
 	viewer := &Viewer{
 		Conn:          conn,
 		ServerAddress: topic,
-		Messages:      messages,
+		Updates:       updates,
 	}
-
-	pubsub.Subscribe(messages, topic)
 
 	viewer.writeUpdatesUntilClose()
 
-	pubsub.Unsubscribe(messages, topic)
+	pubsub.Unsubscribe(updates, topic)
 
 	_ = viewer.Close()
 }

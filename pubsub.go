@@ -40,13 +40,14 @@ func (p *Publisher) Publish(update []byte) {
 
 func (p *Publisher) Close() {
 	close(p.updates)
+	p.notifyPubSub <- p.topic
 }
 
 type PubSub struct {
 	sync.Mutex
-	Publishers  map[string]<-chan []byte          // publishers' update channel by topic
-	Stops       map[string]chan<- struct{}        // channels the publishers listen on for a stop signal; indexed by topic
-	Subscribers map[string]map[chan<- Update]bool // set of subscribers by topic
+	Publishers  map[string]<-chan []byte                   // publishers' update channel by topic
+	Stops       map[string]chan<- struct{}                 // channels the publishers listen on for a stop signal; indexed by topic
+	Subscribers map[string]map[<-chan Update]chan<- Update // set of subscribers by topic; subs are identified by the receiving end provided by Subscribe()
 
 	notifyAboutTopic chan string // channel on which publishers notify PubSub about news for a certain topic
 }
@@ -55,17 +56,14 @@ func NewPubSub() *PubSub {
 	return &PubSub{
 		Publishers:       map[string]<-chan []byte{},
 		Stops:            map[string]chan<- struct{}{},
-		Subscribers:      map[string]map[chan<- Update]bool{},
+		Subscribers:      map[string]map[<-chan Update]chan<- Update{},
 		notifyAboutTopic: make(chan string),
 	}
 }
 
 // CreateTopicIfNotExists returns nil if there's already a publisher for the specified topic. Otherwise, it creates a publisher and passes it to useNewPublisher.
 // The useNewPublisher function may return an error if using the publisher failed. That error is returned to the caller of CreateTopicIfNotExists.
-func (p *PubSub) CreateTopicIfNotExists(topic string, useNewPublisher func(Publisher) error) error {
-	p.Lock()
-	defer p.Unlock()
-
+func (p *PubSub) createTopicIfNotExists(topic string, useNewPublisher func(Publisher) error) error {
 	if _, ok := p.Publishers[topic]; ok {
 		return nil
 	}
@@ -78,7 +76,7 @@ func (p *PubSub) CreateTopicIfNotExists(topic string, useNewPublisher func(Publi
 
 	p.Publishers[topic] = updates
 	p.Stops[topic] = stop
-	p.Subscribers[topic] = map[chan<- Update]bool{}
+	p.Subscribers[topic] = map[<-chan Update]chan<- Update{}
 	return nil
 }
 
@@ -88,30 +86,36 @@ func (p *PubSub) removeTopicIfNoSubs(topic string) {
 		return
 	}
 
+	// stop publisher
 	close(p.Stops[topic])
+
+	// remove everything
 	delete(p.Subscribers, topic)
 	delete(p.Publishers, topic)
 	delete(p.Stops, topic)
 }
 
-func (p *PubSub) Subscribe(sub chan<- Update, topic string) error {
+func (p *PubSub) Subscribe(topic string, useNewPublisher func(Publisher) error) (<-chan Update, error) {
 	p.Lock()
 	defer p.Unlock()
 
-	if _, ok := p.Subscribers[topic]; !ok {
-		return errors.New("no such topic")
+	err := p.createTopicIfNotExists(topic, useNewPublisher)
+	if err != nil {
+		return nil, err
 	}
 
-	p.Subscribers[topic][sub] = true
-	return nil
+	updates := make(chan Update)
+
+	p.Subscribers[topic][updates] = updates
+	return updates, nil
 }
 
-func (p *PubSub) Unsubscribe(sub chan<- Update, topic string) error {
+func (p *PubSub) Unsubscribe(sub <-chan Update, topic string) error {
 	p.Lock()
 	defer p.Unlock()
 
-	if _, ok := p.Subscribers[topic]; !ok {
-		return errors.New("no such publisher")
+	if _, ok := p.Publishers[topic]; !ok {
+		return errors.New("no such topic")
 	}
 
 	delete(p.Subscribers[topic], sub)
@@ -129,7 +133,7 @@ func (p *PubSub) Loop() {
 
 			message, ok := <-p.Publishers[topic]
 			if !ok {
-				for subscriber := range p.Subscribers[topic] {
+				for _, subscriber := range p.Subscribers[topic] {
 					close(subscriber)
 				}
 
@@ -139,21 +143,25 @@ func (p *PubSub) Loop() {
 				continue
 			}
 
-			for subscriber := range p.Subscribers[topic] {
+			for _, subscriber := range p.Subscribers[topic] {
 				select {
 				case subscriber <- Update{
 					Topic:   topic,
 					Content: message,
 				}:
 				case <-time.After(10 * time.Millisecond):
+					// 10ms timeout for each subscriber to receive
+					log.Println("send timed out for subscriber", subscriber)
 				}
 			}
 
 			p.Unlock()
 
 		case <-statusTicker.C:
-			log.Println("polling", len(pubsub.Publishers), "servers")
-			log.Println("serving", len(pubsub.Subscribers), "subscribers")
+			if len(pubsub.Publishers) > 0 {
+				log.Println("polling", len(pubsub.Publishers), "servers")
+				log.Println("serving", len(pubsub.Subscribers), "subscribers")
+			}
 		}
 	}
 }
