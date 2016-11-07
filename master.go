@@ -15,19 +15,21 @@ import (
 
 const DefaultMasterServerAddress = "sauerbraten.org:28787"
 
-type MasterServer struct {
+type MasterServerPoller struct {
 	pubsub.Publisher
 
 	Address       string
 	ServerStates  map[string]extinfo.BasicInfo
 	ServerUpdates chan pubsub.Update
+	Subscriptions map[string]chan pubsub.Update
 }
 
-func NewMasterServerAsPublisher(publisher pubsub.Publisher, conf ...func(*MasterServer)) {
-	ms := &MasterServer{
+func NewMasterServerPoller(publisher pubsub.Publisher, conf ...func(*MasterServerPoller)) {
+	ms := &MasterServerPoller{
 		Publisher:     publisher,
 		ServerStates:  map[string]extinfo.BasicInfo{},
 		ServerUpdates: make(chan pubsub.Update),
+		Subscriptions: map[string]chan pubsub.Update{},
 	}
 
 	for _, configFunc := range conf {
@@ -38,9 +40,25 @@ func NewMasterServerAsPublisher(publisher pubsub.Publisher, conf ...func(*Master
 }
 
 // refresh list and update clients, then do both periodically forever
-func (ms *MasterServer) loop() {
-	ms.refreshServers()
-	ms.update()
+func (ms *MasterServerPoller) loop() {
+	defer ms.Close()
+	defer func() {
+		for addr, updates := range ms.Subscriptions {
+			pubsub.Unsubscribe(updates, addr)
+		}
+	}()
+
+	err := ms.refreshServers()
+	if err != nil {
+		log.Println("error getting initial master server list:", err)
+		return
+	}
+
+	err = ms.update()
+	if err != nil {
+		log.Println("error publishing first update:", err)
+		return
+	}
 
 	masterErrorCount := 0
 	errorCount := 0
@@ -50,13 +68,6 @@ func (ms *MasterServer) loop() {
 
 	refreshTicker := time.NewTicker(30 * time.Second)
 	defer refreshTicker.Stop()
-
-	defer ms.Close()
-	defer func() {
-		for topic := range ms.ServerStates {
-			pubsub.Unsubscribe(ms.ServerUpdates, topic)
-		}
-	}()
 
 	for {
 		select {
@@ -72,6 +83,7 @@ func (ms *MasterServer) loop() {
 			} else {
 				masterErrorCount = 0
 			}
+
 		case <-updateTicker.C:
 			err := ms.update()
 			if err != nil {
@@ -84,15 +96,17 @@ func (ms *MasterServer) loop() {
 			} else {
 				errorCount = 0
 			}
+
 		case upd := <-ms.ServerUpdates:
 			ms.storeServerUpdate(upd)
+
 		case <-ms.Stop:
 			return
 		}
 	}
 }
 
-func (ms *MasterServer) storeServerUpdate(upd pubsub.Update) {
+func (ms *MasterServerPoller) storeServerUpdate(upd pubsub.Update) {
 	serverUpdate := ServerStateUpdate{}
 	err := json.Unmarshal(upd.Content, &serverUpdate)
 	if err != nil {
@@ -103,7 +117,8 @@ func (ms *MasterServer) storeServerUpdate(upd pubsub.Update) {
 	ms.ServerStates[upd.Topic] = serverUpdate.ServerInfo
 }
 
-func (ms *MasterServer) refreshServers() error {
+func (ms *MasterServerPoller) refreshServers() error {
+	// open connection
 	conn, err := net.DialTimeout("tcp", ms.Address, 15*time.Second)
 	if err != nil {
 		return err
@@ -114,7 +129,6 @@ func (ms *MasterServer) refreshServers() error {
 	out := bufio.NewWriter(conn)
 
 	// request new list
-
 	_, err = out.WriteString("list\n")
 	if err != nil {
 		return err
@@ -125,9 +139,9 @@ func (ms *MasterServer) refreshServers() error {
 		return err
 	}
 
-	// receive new list
 	updatedList := map[string]extinfo.BasicInfo{}
 
+	// process response
 	for in.Scan() {
 		msg := in.Text()
 		if msg == "\x00" {
@@ -141,26 +155,37 @@ func (ms *MasterServer) refreshServers() error {
 		addr := strings.Replace(msg, " ", ":", -1)
 
 		// keep old state if possible
-		updatedList[addr] = ms.ServerStates[addr]
+		oldState, known := ms.ServerStates[addr]
+		updatedList[addr] = oldState
 
-		// subscribe to updates from that server
-		updates, err := pubsub.Subscribe(addr, func(publisher pubsub.Publisher) error {
-			return NewPoller(
-				publisher,
-				func(p *Poller) { p.Address = addr },
-			)
-		})
-		if err != nil {
-			log.Println("error subscribing to updates on "+addr+":", err)
-			continue
-		}
-
-		// proxy updates from all servers into single channel
-		go func(updates <-chan pubsub.Update) {
-			for update := range updates {
-				ms.ServerUpdates <- update
+		if !known {
+			// subscribe to updates if the server is new
+			updates, err := pubsub.Subscribe(addr, func(publisher pubsub.Publisher) error {
+				return NewServerPoller(
+					publisher,
+					func(sp *ServerPoller) { sp.Address = addr },
+				)
+			})
+			if err != nil {
+				log.Println("error subscribing to updates on "+addr+":", err)
 			}
-		}(updates)
+
+			ms.Subscriptions[addr] = updates
+
+			go func(updates <-chan pubsub.Update) {
+				for upd := range updates {
+					ms.ServerUpdates <- upd
+				}
+			}(updates)
+		}
+	}
+
+	// unsubscribe from updates about servers not on the list anymore
+	for addr := range ms.ServerStates {
+		if _, ok := updatedList[addr]; !ok {
+			pubsub.Unsubscribe(ms.ServerUpdates, addr)
+			delete(ms.Subscriptions, addr)
+		}
 	}
 
 	ms.ServerStates = updatedList
@@ -168,23 +193,12 @@ func (ms *MasterServer) refreshServers() error {
 	return in.Err()
 }
 
-func (ms *MasterServer) update() error {
-	update, err := ms.buildUpdate()
-	if err != nil {
-		return err
-	}
-
-	ms.Publish(update)
-
-	return nil
-}
-
 type ServerListEntry struct {
 	Address string `json:"address"`
 	extinfo.BasicInfo
 }
 
-func (ms *MasterServer) buildUpdate() ([]byte, error) {
+func (ms *MasterServerPoller) update() error {
 	serverList := []ServerListEntry{}
 	for addr, state := range ms.ServerStates {
 		serverList = append(serverList, ServerListEntry{
@@ -193,5 +207,12 @@ func (ms *MasterServer) buildUpdate() ([]byte, error) {
 		})
 	}
 
-	return json.Marshal(serverList)
+	update, err := json.Marshal(serverList)
+	if err != nil {
+		return err
+	}
+
+	ms.Publish(update)
+
+	return nil
 }

@@ -3,13 +3,14 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/sauerbraten/extinfo"
 	"github.com/sauerbraten/extinfo-web/internal/pubsub"
 )
 
-type Poller struct {
+type ServerPoller struct {
 	pubsub.Publisher
 
 	Server      *extinfo.Server
@@ -18,92 +19,102 @@ type Poller struct {
 	WithPlayers bool
 }
 
-func NewPoller(publisher pubsub.Publisher, config ...func(*Poller)) error {
-	poller := &Poller{
+func NewServerPoller(publisher pubsub.Publisher, config ...func(*ServerPoller)) error {
+	sp := &ServerPoller{
 		Publisher: publisher,
 	}
 
 	for _, configFunc := range config {
-		configFunc(poller)
+		configFunc(sp)
 	}
 
-	host, port, err := HostAndPortFromString(poller.Address, ":")
+	host, port, err := HostAndPortFromString(sp.Address, ":")
 	if err != nil {
 		return err
 	}
 
-	poller.Server, err = extinfo.NewServer(host, port, 5*time.Second)
+	sp.Server, err = extinfo.NewServer(host, port, 5*time.Second)
 	if err != nil {
 		return err
 	}
 
-	go poller.loop()
+	go sp.loop()
 
 	return nil
 }
 
 // poll once immediately, then periodically
-func (p *Poller) loop() {
-	p.poll()
+func (sp *ServerPoller) loop() {
+	defer sp.Close()
+
+	err := sp.update()
+	if err != nil {
+		log.Println("initial poll failed:", err)
+		return
+	}
 
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	defer p.Close()
+
+	errorCount := 0
 
 	for {
 		select {
 		case <-ticker.C:
-			err := p.poll()
+			err := sp.update()
 			if err != nil {
-				// don't print errors, there are too many...
-				return
+				log.Println(err)
+				errorCount++
+				if errorCount > 10 {
+					log.Println("problem with server, exiting loop")
+					return
+				}
+			} else {
+				errorCount = 0
 			}
-		case <-p.Stop:
+
+		case <-sp.Stop:
 			return
 		}
 	}
 }
 
-func (p *Poller) poll() error {
-	update, err := p.buildUpdate()
-	if err != nil {
-		return err
-	}
-
-	p.Publish(update)
-
-	return nil
-}
-
 type ServerStateUpdate struct {
 	ServerInfo extinfo.BasicInfo            `json:"serverinfo"`
-	Teams      map[string]extinfo.TeamScore `json:"teams"`
-	Players    map[int]extinfo.ClientInfo   `json:"players"`
+	Teams      map[string]extinfo.TeamScore `json:"teams,omitempty"`
+	Players    map[int]extinfo.ClientInfo   `json:"players,omitempty"`
 }
 
-func (p *Poller) buildUpdate() ([]byte, error) {
+func (sp *ServerPoller) update() error {
 	update := ServerStateUpdate{}
 	var err error
 
-	update.ServerInfo, err = p.Server.GetBasicInfo()
+	update.ServerInfo, err = sp.Server.GetBasicInfo()
 	if err != nil {
-		return nil, errors.New("error getting basic info from server: " + err.Error())
+		return errors.New("error getting basic info from server: " + err.Error())
 	}
 
-	if p.WithTeams {
-		teams, err := p.Server.GetTeamScores()
+	if sp.WithTeams {
+		teams, err := sp.Server.GetTeamScores()
 		if err != nil {
-			return nil, errors.New("error getting info about team scores from server: " + err.Error())
+			return errors.New("error getting info about team scores from server: " + err.Error())
 		}
 		update.Teams = teams.Scores
 	}
 
-	if p.WithPlayers {
-		update.Players, err = p.Server.GetAllClientInfo()
+	if sp.WithPlayers {
+		update.Players, err = sp.Server.GetAllClientInfo()
 		if err != nil {
-			return nil, errors.New("error getting info about all clients from server: " + err.Error())
+			return errors.New("error getting info about all clients from server: " + err.Error())
 		}
 	}
 
-	return json.Marshal(update)
+	updateJSON, err := json.Marshal(update)
+	if err != nil {
+		return err
+	}
+
+	sp.Publish(updateJSON)
+
+	return nil
 }

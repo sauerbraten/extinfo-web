@@ -14,9 +14,9 @@ type Update struct {
 
 type PubSub struct {
 	sync.Mutex
-	Publishers  map[string]<-chan []byte                   // publishers' update channel by topic
-	Stops       map[string]chan<- struct{}                 // channels the publishers listen on for a stop signal; indexed by topic
-	Subscribers map[string]map[<-chan Update]chan<- Update // set of subscribers by topic; subs are identified by the receiving end provided by Subscribe()
+	Publishers  map[string]<-chan []byte          // publishers' update channel by topic
+	Stops       map[string]chan<- struct{}        // channels the publishers listen on for a stop signal; indexed by topic
+	Subscribers map[string]map[chan<- Update]bool // set of subscribers by topic
 
 	notifyAboutTopic chan string // channel on which publishers notify PubSub about news for a certain topic
 }
@@ -25,7 +25,7 @@ func NewPubSub() *PubSub {
 	p := &PubSub{
 		Publishers:       map[string]<-chan []byte{},
 		Stops:            map[string]chan<- struct{}{},
-		Subscribers:      map[string]map[<-chan Update]chan<- Update{},
+		Subscribers:      map[string]map[chan<- Update]bool{},
 		notifyAboutTopic: make(chan string),
 	}
 
@@ -49,7 +49,7 @@ func (p *PubSub) createTopicIfNotExists(topic string, useNewPublisher func(Publi
 
 	p.Publishers[topic] = updates
 	p.Stops[topic] = stop
-	p.Subscribers[topic] = map[<-chan Update]chan<- Update{}
+	p.Subscribers[topic] = map[chan<- Update]bool{}
 	return nil
 }
 
@@ -63,7 +63,7 @@ func (p *PubSub) stopPublisherIfNoSubs(topic string) {
 
 // assumes that the publisher closed its updates channel
 func (p *PubSub) removeTopic(topic string) {
-	for _, subscriber := range p.Subscribers[topic] {
+	for subscriber := range p.Subscribers[topic] {
 		close(subscriber)
 	}
 
@@ -72,7 +72,7 @@ func (p *PubSub) removeTopic(topic string) {
 	delete(p.Stops, topic)
 }
 
-func (p *PubSub) Subscribe(topic string, useNewPublisher func(Publisher) error) (<-chan Update, error) {
+func (p *PubSub) Subscribe(topic string, useNewPublisher func(Publisher) error) (chan Update, error) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -83,15 +83,15 @@ func (p *PubSub) Subscribe(topic string, useNewPublisher func(Publisher) error) 
 
 	updates := make(chan Update)
 
-	p.Subscribers[topic][updates] = updates
+	p.Subscribers[topic][updates] = true
 	return updates, nil
 }
 
-func Subscribe(topic string, useNewPublisher func(Publisher) error) (<-chan Update, error) {
+func Subscribe(topic string, useNewPublisher func(Publisher) error) (chan Update, error) {
 	return p.Subscribe(topic, useNewPublisher)
 }
 
-func (p *PubSub) Unsubscribe(sub <-chan Update, topic string) error {
+func (p *PubSub) Unsubscribe(sub chan Update, topic string) error {
 	p.Lock()
 	defer p.Unlock()
 
@@ -105,7 +105,7 @@ func (p *PubSub) Unsubscribe(sub <-chan Update, topic string) error {
 	return nil
 }
 
-func Unsubscribe(sub <-chan Update, topic string) error {
+func Unsubscribe(sub chan Update, topic string) error {
 	return p.Unsubscribe(sub, topic)
 }
 
@@ -118,7 +118,7 @@ func (p *PubSub) loop() {
 
 			message, ok := <-p.Publishers[topic]
 			if ok {
-				for _, subscriber := range p.Subscribers[topic] {
+				for subscriber := range p.Subscribers[topic] {
 					select {
 					case subscriber <- Update{
 						Topic:   topic,
@@ -126,7 +126,7 @@ func (p *PubSub) loop() {
 					}:
 					case <-time.After(10 * time.Millisecond):
 						// 10ms timeout for each subscriber to receive
-						log.Println("send timed out for subscriber", subscriber)
+						log.Println("sending update on topic", topic, "timed out for subscriber", subscriber)
 					}
 				}
 			} else {

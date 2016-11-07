@@ -35,15 +35,15 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 
 	subscribeWebsocket(resp, req, topic, func(publisher pubsub.Publisher) error {
 		log.Println("starting to poll", addr)
-		return NewPoller(
+		return NewServerPoller(
 			publisher,
-			func(p *Poller) { p.WithPlayers = true },
-			func(p *Poller) { p.WithTeams = true },
-			func(p *Poller) { p.Address = addr },
+			func(sp *ServerPoller) { sp.WithPlayers = true },
+			func(sp *ServerPoller) { sp.WithTeams = true },
+			func(sp *ServerPoller) { sp.Address = addr },
 		)
 	})
 
-	log.Println(req.RemoteAddr, "stopped watching", addr)
+	log.Println(req.RemoteAddr, "stopped watching", topic)
 }
 
 func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
@@ -51,7 +51,7 @@ func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.
 
 	subscribeWebsocket(resp, req, DefaultMasterServerAddress, func(publisher pubsub.Publisher) error {
 		log.Println("starting to poll the master server")
-		NewMasterServerAsPublisher(publisher, func(ms *MasterServer) { ms.Address = DefaultMasterServerAddress })
+		NewMasterServerPoller(publisher, func(msp *MasterServerPoller) { msp.Address = DefaultMasterServerAddress })
 		return nil
 	})
 
