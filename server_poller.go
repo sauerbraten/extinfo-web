@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sauerbraten/extinfo"
@@ -28,7 +30,7 @@ func NewServerPoller(publisher pubsub.Publisher, config ...func(*ServerPoller)) 
 		configFunc(sp)
 	}
 
-	host, port, err := HostAndPortFromString(sp.Address, ":")
+	host, port, err := hostAndPortFromString(sp.Address, ":")
 	if err != nil {
 		return err
 	}
@@ -117,4 +119,16 @@ func (sp *ServerPoller) update() error {
 	sp.Publish(updateJSON)
 
 	return nil
+}
+
+func hostAndPortFromString(addr, separator string) (string, int, error) {
+	addressParts := strings.Split(addr, separator)
+	if len(addressParts) != 2 {
+		return "", 0, errors.New("invalid address")
+	}
+
+	host := addressParts[0]
+	port, err := strconv.Atoi(addressParts[1])
+
+	return host, port, err
 }
