@@ -16,14 +16,14 @@
 </head>
 
 <body onload='init();' spellcheck='false'>
-	<main>
-		<header id='serverinfo' v-bind:style='{ background: makeBackgroundString(info.map) }'>
+	<main id='scoreboard' v-bind:style='{ background: makeBackgroundString(info.map) }'>
+		<header>
 			<h1>{{info.description}}</h1>
 			<h3>
 				<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong> | {{formatTimeLeft(info.secsLeft)}} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
 			</h3>
 		</header>
-		<div id='teams' class='teams'>
+		<div class='teams'>
 			<div class='team-table' v-for='team in teams'>
 				<h2>{{team.name}}: {{team.score}}</h2>
 				<div>
@@ -51,7 +51,7 @@
 			</div>
 		</div>
 
-		<div id='spectators' class='spectators centered' v-show='spectators.length > 0'>
+		<div class='spectators centered' v-show='spectators.length > 0'>
 			<h2>spectators</h2>
 			<span class='spectator' v-for='spectator in spectators'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
 		</div>
@@ -120,23 +120,13 @@
 		}
 
 		new Vue({
-			el: '#serverinfo',
+			el: '#scoreboard',
 			data: model,
 			methods: {
 				makeBackgroundString: function(map) {
-					return 'url("//sauertracker.net/images/mapshots/' + map + '.jpg") no-repeat center center / cover'
+					return 'url("//sauertracker.net/images/mapshots/' + map + '.jpg") no-repeat center center / cover, #555'
 				}
 			}
-		})
-
-		new Vue({
-			el: '#teams',
-			data: model,
-		})
-
-		new Vue({
-			el: '#spectators',
-			data: model,
 		})
 
 		new Vue({

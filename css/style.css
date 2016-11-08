@@ -1,6 +1,6 @@
 body {
 	font-family: 'Roboto Mono', monospace;
-	font-size: small;
+	font-size: .9em;
 
 	max-width: 72em;
 	min-height: 100vh;
@@ -27,23 +27,20 @@ footer, .teams {
 }
 
 main, aside, footer {
-	margin-bottom: 3em;
+	margin-bottom: 2em;
+	padding-bottom: 1em;
 }
 
 main > *, aside > *, footer > * {
 	padding: 0 .5em;
 }
 
-header {
-	background: url('//sauertracker.net/images/mapshots/firstevermap.jpg') no-repeat center center / cover;
+main {
+	background: url('//sauertracker.net/images/mapshots/firstevermap.jpg') no-repeat center center / cover, #555;
+	background-blend-mode: overlay;
 	color: white;
 	text-shadow: 0 0 10px black;
 	box-shadow: 0 0 2px 0px black;
-	margin-bottom: 1em;
-}
-
-aside {
-	color: #666;
 }
 
 .team-table {
@@ -61,6 +58,10 @@ h1, h2, h3 {
 
 h1 {
 	margin: 1.5em 0;
+}
+
+h2, h3 {
+	margin: 1em 0;
 }
 
 h3 {
