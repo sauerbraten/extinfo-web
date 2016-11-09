@@ -15,18 +15,20 @@
 	<script src='/js/extinfo.js'></script>
 </head>
 
-<body onload='init();' spellcheck='false'>
+<body onload='init();' spellcheck='false' class='flex flex-col'>
 	<main id='scoreboard' v-bind:style='{ background: makeBackgroundString(info.map) }'>
 		<header>
-			<h1>{{info.description}}</h1>
-			<h3>
+			<h1 class='scrollable-x'>
+				{{info.description}}
+			</h1>
+			<h3 class='scrollable-x'>
 				<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong> | {{formatTimeLeft(info.secsLeft)}} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
 			</h3>
 		</header>
-		<div class='teams'>
-			<div class='team-table' v-for='team in teams'>
+		<section id='teams' class='flex flex-row'>
+			<div class='team flex flex-col' v-for='team in teams'>
 				<h2>{{team.name}}: {{team.score}}</h2>
-				<div>
+				<div class='team-table scrollable-x'>
 					<table>
 						<thead>
 							<tr>
@@ -49,17 +51,20 @@
 					</table>
 				</div>
 			</div>
-		</div>
+		</section>
 
-		<div class='spectators centered' v-show='spectators.length > 0'>
+		<section id='spectators' v-show='spectators.length > 0'>
 			<h2>spectators</h2>
-			<span class='spectator' v-for='spectator in spectators'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
-		</div>
+			<div class='flex flex-row centered'>
+				<span class='spectator' v-for='spectator in spectators'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
+			</div>
+		</section>
 	</main>
 
-	<aside>
-		<div id='serverlist'>
-			<table v-if='servers.length'>
+	<aside id='serverlist' class='flex flex-col'>
+		<h2>Other Servers</h2>
+		<div v-if='servers.length' class='scrollable-x' >
+			<table>
 				<thead>
 					<tr>
 						<td>Players</td>
@@ -84,15 +89,18 @@
 					</tr>
 				</tbody>
 			</table>
-			<h1 v-else>
-				loading server list …
-			</h1>
 		</div>
+		<p v-else class='centered'>
+			loading...
+		</p>
 	</aside>
 
-	<footer>
+	<footer class='flex flex-row centered'>
 		<small>
-			Sauerbraten live monitor by pix – <a href='https://github.com/sauerbraten/extinfo-web'>Code on GitHub</a>
+			Sauerbraten live monitor by pix.
+		</small>
+		<small>
+			<a href='https://github.com/sauerbraten/extinfo-web'>Code on GitHub</a>
 		</small>
 	</footer>
 

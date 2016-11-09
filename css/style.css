@@ -1,3 +1,7 @@
+* {
+	box-sizing: border-box;
+}
+
 body {
 	font-family: 'Roboto Mono', monospace;
 	font-size: .9em;
@@ -6,36 +10,28 @@ body {
 	min-height: 100vh;
 	margin: 0 auto;
 
-	justify-content: space-between;
-
 	overflow-y: scroll;
 }
 
-body, main, aside, footer, .teams {
+.flex {
 	display: flex;
 }
 
-body, main, aside {
-	flex-grow: 1;
+.flex-col {
 	flex-flow: column nowrap;
 	align-items: stretch;
 }
 
-footer, .teams {
+.flex-row {
 	flex-flow: row wrap;
 	justify-content: space-around;
 }
 
-main, aside, footer {
-	margin-bottom: 2em;
-	padding-bottom: 1em;
+#scoreboard, #serverlist, footer {
+	margin-bottom: 1em;
 }
 
-main > *, aside > *, footer > * {
-	padding: 0 .5em;
-}
-
-main {
+#scoreboard {
 	background: url('//sauertracker.net/images/mapshots/firstevermap.jpg') no-repeat center center / cover, #555;
 	background-blend-mode: overlay;
 	color: white;
@@ -43,13 +39,26 @@ main {
 	box-shadow: 0 0 2px 0px black;
 }
 
-.team-table {
+header, #serverlist, .flex-row > * {
+	padding: 0 .5em 1em .5em;
+}
+
+.team {
 	flex-basis: 30em;
 }
 
-header > *, .teams > *, .team-table > *, #serverlist {
-	overflow-x: auto;
+#serverlist {
+	flex-grow: 1;
+	justify-content: flex-end;
+}
+
+header, .team, #serverlist {
+	overflow-x: hidden;
+}
+
+.scrollable-x {
 	white-space: nowrap;
+	overflow-x: auto;
 }
 
 h1, h2, h3 {
@@ -96,15 +105,6 @@ a {
 	color: #2564a2;
 }
 
-.spectator {
-	display: inline-block;
-	margin: 0 0 .75em 0;
-}
-
-.spectator + .spectator {
-	padding-left: 2em;
-}
-
 .subtle {
 	color: inherit;
 }
@@ -114,5 +114,6 @@ a {
 }
 
 .centered {
+	justify-content: center;
 	text-align: center;
 }
