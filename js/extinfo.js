@@ -45,7 +45,7 @@ function reset() {
 }
 
 function initsocket() {
-	sock = new WebSocket('ws://' + window.location.host + '/server/' + addr)
+	sock = new WebSocket('wss://' + window.location.host + '/server/' + addr)
 
 	sock.onerror = function () {
 		alert('could not connect to a server at that address!')
@@ -83,7 +83,7 @@ function initsocket() {
 }
 
 function initmaster() {
-	master = new WebSocket('ws://' + window.location.host + '/master')
+	master = new WebSocket('wss://' + window.location.host + '/master')
 
 	master.onerror = function () {
 		alert('could not connect to the master server!')
