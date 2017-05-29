@@ -11,12 +11,12 @@
 	<link href='https://fonts.googleapis.com/css?family=Roboto+Mono:400,700&subset=cyrillic,greek' rel='stylesheet'>
 	<link rel='stylesheet' href='/css/style.css'>
 
-	<script src='https://cdnjs.cloudflare.com/ajax/libs/vue/2.0.3/vue.min.js'></script>
+	<script src='https://cdnjs.cloudflare.com/ajax/libs/vue/2.3.0/vue.js'></script>
 	<script src='/js/extinfo.js'></script>
 </head>
 
 <body onload='init();' spellcheck='false' class='flex flex-col'>
-	<main id='scoreboard' v-bind:style='{ background: makeBackgroundString(info.map) }'>
+	<main id='scoreboard' v-bind:style='{ background: backgroundImageCSS }'>
 		<header>
 			<h1 class='scrollable-x'>
 				{{info.description}}
@@ -44,7 +44,7 @@
 								<td class='count'>{{player.frags}}</td>
 								<td class='count'>{{player.deaths}}</td>
 								<td class='count'>{{player.accuracy}}%</td>
-								<td>{{player.name}}</td>
+								<td v-bind:title='player.privilege'>{{player.name}}</td>
 								<td class='count'>{{player.clientNum}}</td>
 							</tr>
 						</tbody>
@@ -56,7 +56,9 @@
 		<section id='spectators' v-show='spectators.length > 0'>
 			<h2>spectators</h2>
 			<div class='flex flex-row centered'>
-				<span class='spectator' v-for='spectator in spectators'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
+				<template v-for='spectator in spectators'>
+					<span class='spectator' v-bind:title='spectator.privilege'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
+				</template>
 			</div>
 		</section>
 	</main>
@@ -130,10 +132,13 @@
 		new Vue({
 			el: '#scoreboard',
 			data: model,
-			methods: {
-				makeBackgroundString: function(map) {
-					return 'url("//sauertracker.net/images/mapshots/' + map + '.jpg") no-repeat center center / cover, #555'
+			computed: {
+				backgroundImageCSS: function() {
+					return 'url("//sauertracker.net/images/mapshots/' + model.info.map + '.jpg") no-repeat center center / cover, #555'
 				}
+			},
+			methods: {
+				formatTimeLeft: formatTimeLeft
 			}
 		})
 
@@ -141,6 +146,7 @@
 			el:'#serverlist',
 			data: model,
 			methods: {
+				formatTimeLeft: formatTimeLeft,
 				isTeamMode: function(mode) {
 					return !(['ffa', 'coop edit', 'instagib', 'efficiency', 'tactics'].includes(mode))
 				}
