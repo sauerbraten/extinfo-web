@@ -22,6 +22,7 @@ function init() {
 function reset() {
 	if (typeof (sock) != 'undefined') {
 		sock.close()
+		sock.onerror = null
 		sock = null
 
 		document.title = 'loading … – extinfo'
