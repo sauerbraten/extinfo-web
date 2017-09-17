@@ -35,7 +35,7 @@ func NewServerPoller(publisher pubsub.Publisher, config ...func(*ServerPoller)) 
 		return err
 	}
 
-	sp.Server, err = extinfo.NewServer(host, port, 5*time.Second)
+	sp.Server, err = extinfo.NewServer(host, port, 10*time.Second)
 	if err != nil {
 		return err
 	}
