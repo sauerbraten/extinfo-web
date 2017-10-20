@@ -6,12 +6,15 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
+	"github.com/sauerbraten/pubsub"
 )
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 }
+
+var broker = pubsub.NewBroker()
 
 func main() {
 	r := httprouter.New()

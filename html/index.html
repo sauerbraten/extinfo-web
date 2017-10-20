@@ -8,11 +8,10 @@
 
 	<title>live monitor – extinfo</title>
 
-	<link href='https://fonts.googleapis.com/css?family=Roboto+Mono:400,700&subset=cyrillic,greek' rel='stylesheet'>
+	<link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Roboto+Mono:400,700&subset=cyrillic,greek'>
 	<link rel='stylesheet' href='/css/style.css'>
 
-	<script src='https://cdnjs.cloudflare.com/ajax/libs/vue/2.3.0/vue.js'></script>
-	<script src='/js/extinfo.js'></script>
+	<script src='https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.2/vue.js'></script>
 </head>
 
 <body onload='init();' spellcheck='false' class='flex flex-col'>
@@ -65,7 +64,7 @@
 
 	<aside id='serverlist' class='flex flex-col'>
 		<h2>Other Servers</h2>
-		<div v-if='servers.length' class='scrollable-x' >
+		<div v-if='servers.length' class='scrollable-x'>
 			<table>
 				<thead>
 					<tr>
@@ -106,13 +105,11 @@
 		</small>
 	</footer>
 
+	<script src='/js/extinfo.js'></script>
+
 	<script>
-		function formatTimeLeft(secondsLeft) {
-			var pad = function(i) { return (i < 10 ? '0' : '') + i }
-			var minutes = pad(Math.floor(secondsLeft/60))
-			var seconds = pad(secondsLeft % 60)
-			return minutes + ':' + seconds
-		}
+		var pad = m => (m < 10 ? '0' : '') + m
+		var formatTimeLeft = s => pad(Math.floor(s / 60)) + ':' + pad(s % 60)
 
 		var model = {
 			info: {
@@ -133,9 +130,7 @@
 			el: '#scoreboard',
 			data: model,
 			computed: {
-				backgroundImageCSS: function() {
-					return 'url("//sauertracker.net/images/mapshots/' + model.info.map + '.jpg") no-repeat center center / cover, #555'
-				}
+				backgroundImageCSS: () => 'url("//sauertracker.net/images/mapshots/' + model.info.map + '.jpg") no-repeat center center / cover, #555'
 			},
 			methods: {
 				formatTimeLeft: formatTimeLeft
@@ -143,13 +138,11 @@
 		})
 
 		new Vue({
-			el:'#serverlist',
+			el: '#serverlist',
 			data: model,
 			methods: {
 				formatTimeLeft: formatTimeLeft,
-				isTeamMode: function(mode) {
-					return !(['ffa', 'coop edit', 'instagib', 'efficiency', 'tactics'].includes(mode))
-				}
+				isTeamMode: mode => !(['ffa', 'coop edit', 'instagib', 'efficiency', 'tactics'].includes(mode))
 			}
 		})
 	</script>

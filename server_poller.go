@@ -9,19 +9,19 @@ import (
 	"time"
 
 	"github.com/sauerbraten/extinfo"
-	"github.com/sauerbraten/extinfo-web/internal/pubsub"
+	"github.com/sauerbraten/pubsub"
 )
 
 type ServerPoller struct {
-	pubsub.Publisher
+	*pubsub.Publisher
 
-	Server      *extinfo.Server
+	server      *extinfo.Server
 	Address     string
 	WithTeams   bool
 	WithPlayers bool
 }
 
-func NewServerPoller(publisher pubsub.Publisher, config ...func(*ServerPoller)) error {
+func NewServerPoller(publisher *pubsub.Publisher, config ...func(*ServerPoller)) error {
 	sp := &ServerPoller{
 		Publisher: publisher,
 	}
@@ -35,7 +35,7 @@ func NewServerPoller(publisher pubsub.Publisher, config ...func(*ServerPoller)) 
 		return err
 	}
 
-	sp.Server, err = extinfo.NewServer(host, port, 10*time.Second)
+	sp.server, err = extinfo.NewServer(host, port, 10*time.Second)
 	if err != nil {
 		return err
 	}
@@ -91,13 +91,13 @@ func (sp *ServerPoller) update() error {
 	update := ServerStateUpdate{}
 	var err error
 
-	update.ServerInfo, err = sp.Server.GetBasicInfo()
+	update.ServerInfo, err = sp.server.GetBasicInfo()
 	if err != nil {
 		return errors.New("error getting basic info from server: " + err.Error())
 	}
 
 	if sp.WithTeams {
-		teams, err := sp.Server.GetTeamScores()
+		teams, err := sp.server.GetTeamScores()
 		if err != nil {
 			return errors.New("error getting info about team scores from server: " + err.Error())
 		}
@@ -105,7 +105,7 @@ func (sp *ServerPoller) update() error {
 	}
 
 	if sp.WithPlayers {
-		update.Players, err = sp.Server.GetAllClientInfo()
+		update.Players, err = sp.server.GetAllClientInfo()
 		if err != nil {
 			return errors.New("error getting info about all clients from server: " + err.Error())
 		}
