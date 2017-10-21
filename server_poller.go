@@ -48,6 +48,9 @@ func NewServerPoller(publisher *pubsub.Publisher, config ...func(*ServerPoller))
 // poll once immediately, then periodically
 func (sp *ServerPoller) loop() {
 	defer sp.Close()
+	defer debug("stopped polling", sp.Topic())
+
+	debug("started polling", sp.Topic())
 
 	err := sp.update()
 	if err != nil {

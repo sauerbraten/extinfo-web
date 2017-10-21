@@ -37,3 +37,7 @@ func main() {
 func home(resp http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	http.ServeFile(resp, req, "html/index.html")
 }
+
+func debug(a ...interface{}) {
+	//log.Println(a...)
+}

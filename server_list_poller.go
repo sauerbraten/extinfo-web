@@ -20,6 +20,8 @@ type serverListEntryUpdate struct {
 	Update  []byte
 }
 
+// ServerListPoller polls the master server and publishes updates about the server list by
+// starting a poller for the basic info of each server on the list and subscribing to its updates.
 type ServerListPoller struct {
 	*pubsub.Publisher
 	subscriptions map[string]chan []byte // server address → update channel
@@ -53,6 +55,9 @@ func (slp *ServerListPoller) loop() {
 			broker.Unsubscribe(updates, addr)
 		}
 	}()
+	defer debug("stopped polling the master server list")
+
+	debug("started polling the master server list")
 
 	err := slp.refreshServers()
 	if err != nil {
@@ -83,7 +88,7 @@ func (slp *ServerListPoller) loop() {
 				log.Println(err)
 				masterErrorCount++
 				if masterErrorCount > 10 {
-					log.Println("problem with master server, exiting master server loop")
+					log.Println("problem with master server, exiting server list poller loop")
 					return
 				}
 			} else {
@@ -96,7 +101,7 @@ func (slp *ServerListPoller) loop() {
 				log.Println(err)
 				errorCount++
 				if errorCount > 10 {
-					log.Println("problem with updates, exiting master server loop")
+					log.Println("problem with updates, exiting server list poller loop")
 					return
 				}
 			} else {

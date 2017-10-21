@@ -20,7 +20,7 @@ type Viewer struct {
 func (v *Viewer) writeUpdatesUntilClose() {
 	for update := range v.Updates {
 		if err := v.WriteMessage(websocket.TextMessage, update); err != nil {
-			log.Println("sending failed: forcing unregister for viewer", v.RemoteAddr())
+			debug("sending failed: forcing unsubscribe for viewer", v.RemoteAddr())
 			return
 		}
 	}
@@ -34,7 +34,6 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 	log.Println(req.RemoteAddr, "started watching", topic)
 
 	subscribeWebsocket(resp, req, topic, func(publisher *pubsub.Publisher) error {
-		log.Println("starting to poll", addr)
 		return NewServerPoller(
 			publisher,
 			func(sp *ServerPoller) { sp.WithPlayers = true },
@@ -50,7 +49,6 @@ func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.
 	log.Println(req.RemoteAddr, "started watching the master server list")
 
 	subscribeWebsocket(resp, req, DefaultMasterServerAddress, func(publisher *pubsub.Publisher) error {
-		log.Println("starting to poll the master server")
 		NewServerListPoller(publisher, func(msp *ServerListPoller) { msp.MasterServerAddress = DefaultMasterServerAddress })
 		return nil
 	})
