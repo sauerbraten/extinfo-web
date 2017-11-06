@@ -15,7 +15,7 @@
 </head>
 
 <body onload='init();' spellcheck='false' class='flex flex-col'>
-	<main id='scoreboard' v-bind:style='{ background: backgroundImageCSS }'>
+	<main id='scoreboard' :style='{ background: backgroundImageCSS }'>
 		<header>
 			<h1 class='scrollable-x'>
 				{{info.description}}
@@ -24,7 +24,7 @@
 				<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong> | {{formatTimeLeft(info.secsLeft)}} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
 			</h3>
 		</header>
-		<section id='teams' class='flex flex-row'>
+		<section class='flex flex-row'>
 			<div class='team flex flex-col' v-for='team in teams'>
 				<h2>{{team.name}}: {{team.score}}</h2>
 				<div class='team-table scrollable-x'>
@@ -43,7 +43,7 @@
 								<td class='count'>{{player.frags}}</td>
 								<td class='count'>{{player.deaths}}</td>
 								<td class='count'>{{player.accuracy}}%</td>
-								<td v-bind:title='player.privilege'>{{player.name}}</td>
+								<td :title='player.privilege'>{{player.name}}</td>
 								<td class='count'>{{player.clientNum}}</td>
 							</tr>
 						</tbody>
@@ -52,11 +52,11 @@
 			</div>
 		</section>
 
-		<section id='spectators' v-show='spectators.length > 0'>
+		<section v-show='spectators.length > 0'>
 			<h2>spectators</h2>
 			<div class='flex flex-row centered'>
 				<template v-for='spectator in spectators'>
-					<span class='spectator' v-bind:title='spectator.privilege'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
+					<span class='spectator' :title='spectator.privilege'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
 				</template>
 			</div>
 		</section>
@@ -80,7 +80,7 @@
 					<tr v-for='server in servers'>
 						<td class='count'>{{server.numberOfClients}}</td>
 						<td v-if='isTeamMode(server.gameMode)'>
-							<a v-bind:href='"#"+server.address' class='subtle'>{{server.description}}</a>
+							<a :href='"#"+server.address' class='subtle'>{{server.description}}</a>
 						</td>
 						<td v-else>{{server.description}}</td>
 						<td>{{server.gameMode}}</td>
@@ -123,14 +123,14 @@
 			},
 			teams: {},
 			spectators: [],
-			servers: [],
+			servers: []
 		}
 
 		new Vue({
 			el: '#scoreboard',
 			data: model,
 			computed: {
-				backgroundImageCSS: () => 'url("//sauertracker.net/images/mapshots/' + model.info.map + '.jpg") no-repeat center center / cover, #555'
+				backgroundImageCSS: () => `url('//sauertracker.net/images/mapshots/${model.info.map}.jpg') no-repeat center center / cover, #555`
 			},
 			methods: {
 				formatTimeLeft: formatTimeLeft
