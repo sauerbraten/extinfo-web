@@ -220,6 +220,9 @@ type serverListEntry struct {
 func (slp *ServerListPoller) publishUpdate() error {
 	serverList := []serverListEntry{}
 	for addr, state := range slp.serverStates {
+		if state.NumberOfClients <= 0 {
+			continue
+		}
 		serverList = append(serverList, serverListEntry{
 			Address:   addr,
 			BasicInfo: state,
