@@ -49,7 +49,10 @@ func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.
 	log.Println(req.RemoteAddr, "started watching the master server list")
 
 	subscribeWebsocket(resp, req, DefaultMasterServerAddress, func(publisher *pubsub.Publisher) error {
-		NewServerListPoller(publisher, func(msp *ServerListPoller) { msp.MasterServerAddress = DefaultMasterServerAddress })
+		NewServerListPoller(
+			publisher,
+			func(msp *ServerListPoller) { msp.MasterServerAddress = DefaultMasterServerAddress },
+		)
 		return nil
 	})
 

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/sauerbraten/extinfo"
@@ -30,7 +30,7 @@ func NewServerPoller(publisher *pubsub.Publisher, config ...func(*ServerPoller))
 		configFunc(sp)
 	}
 
-	host, port, err := hostAndPortFromString(sp.Address, ":")
+	host, port, err := hostAndPort(sp.Address)
 	if err != nil {
 		return err
 	}
@@ -124,14 +124,16 @@ func (sp *ServerPoller) update() error {
 	return nil
 }
 
-func hostAndPortFromString(addr, separator string) (string, int, error) {
-	addressParts := strings.Split(addr, separator)
-	if len(addressParts) != 2 {
-		return "", 0, errors.New("invalid address")
+func hostAndPort(addr string) (string, int, error) {
+	host, _port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", -1, errors.New("could not split address into host and port: " + err.Error())
 	}
 
-	host := addressParts[0]
-	port, err := strconv.Atoi(addressParts[1])
+	port, err := strconv.Atoi(_port)
+	if err != nil {
+		return "", -1, errors.New("could not convert port to int: " + err.Error())
+	}
 
-	return host, port, err
+	return host, port, nil
 }
