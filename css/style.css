@@ -44,7 +44,7 @@ header, #serverlist, .flex-row > * {
 }
 
 .team {
-	flex-basis: 30em;
+	flex-basis: 32em;
 }
 
 #serverlist {
