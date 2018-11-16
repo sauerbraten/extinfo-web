@@ -12,7 +12,7 @@
 	<link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Roboto+Mono:400,700&subset=cyrillic,greek'>
 	<link rel='stylesheet' href='/css/style.css'>
 
-	<script src='https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.min.js'></script>
+	<script src='https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.js'></script>
 </head>
 
 <body onload='init();' spellcheck='false' class='flex flex-col'>
@@ -27,67 +27,16 @@
 				{{formatTimeLeft(info.secsLeft)}} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
 			</h3>
 		</header>
+
 		<section class='flex flex-row'>
-			<div class='team flex flex-col' v-for='team in teams'>
-				<h2>{{team.name}}: {{team.score}}</h2>
-				<div class='team-table scrollable-x'>
-					<table>
-						<thead>
-							<tr>
-								<td>Frags</td>
-								<td>Deaths</td>
-								<td>Accuracy</td>
-								<td>Name</td>
-								<td>CN</td>
-							</tr>
-						</thead>
-						<tbody>
-							<tr v-for='player in team.players'>
-								<td class='count'>{{player.frags}}</td>
-								<td class='count'>{{player.deaths}}</td>
-								<td class='count'>{{player.accuracy}}%</td>
-								<td v-if='player.privilege != "none"' :class='`priv-${player.privilege}`' :title='player.privilege'>{{player.name}}</td>
-								<td v-else>{{player.name}}</td>
-								<td class='count'>{{player.clientNum}}</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-			</div>
-			<div class='team flex flex-col' v-if='teamless.length > 0'>
-				<h2>players</h2>
-				<div class='team-table scrollable-x'>
-					<table>
-						<thead>
-							<tr>
-								<td>Frags</td>
-								<td>Deaths</td>
-								<td>Accuracy</td>
-								<td>Name</td>
-								<td>CN</td>
-							</tr>
-						</thead>
-						<tbody>
-							<tr v-for='player in teamless'>
-								<td class='count'>{{player.frags}}</td>
-								<td class='count'>{{player.deaths}}</td>
-								<td class='count'>{{player.accuracy}}%</td>
-								<td v-if='player.privilege != "none"' :class='`priv-${player.privilege}`' :title='player.privilege'>{{player.name}}</td>
-								<td v-else>{{player.name}}</td>
-								<td class='count'>{{player.clientNum}}</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-			</div>
+			<player-list v-for='team in teams' :title='`${team.name}: ${team.score}`' :players='team.players'></player-list>
+			<player-list v-if='teamless.length > 0' :players='teamless'></player-list>
 		</section>
 
 		<section v-show='spectators.length > 0'>
 			<h2>spectators</h2>
 			<div class='flex flex-row centered'>
-				<template v-for='spectator in spectators'>
-					<span class='spectator' :title='spectator.privilege'>{{spectator.name}}&nbsp;({{spectator.clientNum}})</span>
-				</template>
+				<player-name v-for='spectator in spectators' :player='spectator'></player-name>
 			</div>
 		</section>
 	</main>
@@ -158,6 +107,62 @@
 			spectators: [],
 			servers: []
 		}
+
+		Vue.component('player-name', {
+			props: {
+				player: {
+					type: Object,
+					default: {
+						name: '',
+						clientNum: -1,
+						privilege: 'none'
+					}
+				}
+			},
+			template: `
+				<span>
+					<span v-if='player.privilege != "none"' :class='"priv-"+player.privilege' :title='player.privilege'>{{player.name}}</span>
+					<span v-else>{{player.name}}</span>
+					<span class='cn'>({{player.clientNum}})</span>
+				</span>`,
+		})
+
+		Vue.component('player-list', {
+			props: {
+				title: {
+					type: String,
+					default: "players"
+				},
+				players: {
+					type: Array,
+					default: []
+				}
+			},
+			template: `
+				<div class='team flex flex-col'>
+					<h2>{{title}}</h2>
+					<div class='team-table scrollable-x'>
+						<table>
+							<thead>
+								<tr>
+									<td>Frags</td>
+									<td>Deaths</td>
+									<td>Accuracy</td>
+									<td>Name</td>
+								</tr>
+							</thead>
+							<tbody>
+								<tr v-for='player in players'>
+									<td class='count'>{{player.frags}}</td>
+									<td class='count'>{{player.deaths}}</td>
+									<td class='count'>{{player.accuracy}}%</td>
+									<td><player-name :player='player'></player-name></td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>`,
+		})
 
 		new Vue({
 			el: '#scoreboard',

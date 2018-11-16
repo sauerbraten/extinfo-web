@@ -110,7 +110,7 @@ a {
 	color: #2564a2;
 }
 
-.subtle {
+a.subtle {
 	color: inherit;
 }
 
@@ -129,4 +129,8 @@ a {
 
 .priv-admin {
 	color: #FF8000;
+}
+
+.cn {
+	opacity: .3;
 }
