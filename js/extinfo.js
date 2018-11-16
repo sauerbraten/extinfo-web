@@ -59,26 +59,38 @@ function initsocket() {
 		document.title = update.serverinfo.description + ' – extinfo'
 		spectators = []
 
-		for (teamName in update.teams) {
-			update.teams[teamName].players = []
+		if ('teams' in update) {
+			for (teamName in update.teams) {
+				update.teams[teamName].players = []
+			}
+		} else {
+			update.teamless = []
 		}
 
 		for (cn in update.players) {
 			var player = update.players[cn]
 			if (player.state == 'spectator') {
 				spectators.push(player)
-			} else {
+			} else if ('teams' in update && player.team in update.teams) {
 				update.teams[player.team].players.push(player)
+			} else {
+				update.teamless.push(player)
 			}
 		}
 
+		if ('teams' in update) {
+			for (teamName in update.teams) {
+				update.teams[teamName].players.sort(scoreboardSortingFunction)
+			}
+			model.teamless = []
+			model.teams = update.teams
+		} else {
+			update.teamless.sort(scoreboardSortingFunction)
+			model.teams = []
+			model.teamless = update.teamless
+		}
 		model.spectators = spectators
 
-		for (teamName in update.teams) {
-			update.teams[teamName].players.sort(scoreboardSortingFunction)
-		}
-
-		model.teams = update.teams
 	}
 }
 

@@ -3,15 +3,16 @@
 
 <head>
 	<meta http-equiv='X-UA-Compatible' content='IE=Edge'>
-	<meta name='viewport' content='width=device-width, initial-scale=1' />
+	<meta name='viewport' content='width=device-width, initial-scale=1'>
 	<meta charset='utf-8'>
 
-	<title>live monitor – extinfo</title>
+	<title>extinfo: sauerbraten live monitor</title>
+	<meta name='description' content='Sauerbraten live monitor allows you to see server information and player statistics in real-time.'>
 
 	<link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Roboto+Mono:400,700&subset=cyrillic,greek'>
 	<link rel='stylesheet' href='/css/style.css'>
 
-	<script src='https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.2/vue.js'></script>
+	<script src='https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.min.js'></script>
 </head>
 
 <body onload='init();' spellcheck='false' class='flex flex-col'>
@@ -21,7 +22,9 @@
 				{{info.description}}
 			</h1>
 			<h3 class='scrollable-x'>
-				<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong> | {{formatTimeLeft(info.secsLeft)}} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
+				<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong>
+				<br>
+				{{formatTimeLeft(info.secsLeft)}} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
 			</h3>
 		</header>
 		<section class='flex flex-row'>
@@ -43,7 +46,34 @@
 								<td class='count'>{{player.frags}}</td>
 								<td class='count'>{{player.deaths}}</td>
 								<td class='count'>{{player.accuracy}}%</td>
-								<td :title='player.privilege'>{{player.name}}</td>
+								<td v-if='player.privilege != "none"' :class='`priv-${player.privilege}`' :title='player.privilege'>{{player.name}}</td>
+								<td v-else>{{player.name}}</td>
+								<td class='count'>{{player.clientNum}}</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+			<div class='team flex flex-col' v-if='teamless.length > 0'>
+				<h2>players</h2>
+				<div class='team-table scrollable-x'>
+					<table>
+						<thead>
+							<tr>
+								<td>Frags</td>
+								<td>Deaths</td>
+								<td>Accuracy</td>
+								<td>Name</td>
+								<td>CN</td>
+							</tr>
+						</thead>
+						<tbody>
+							<tr v-for='player in teamless'>
+								<td class='count'>{{player.frags}}</td>
+								<td class='count'>{{player.deaths}}</td>
+								<td class='count'>{{player.accuracy}}%</td>
+								<td v-if='player.privilege != "none"' :class='`priv-${player.privilege}`' :title='player.privilege'>{{player.name}}</td>
+								<td v-else>{{player.name}}</td>
 								<td class='count'>{{player.clientNum}}</td>
 							</tr>
 						</tbody>
@@ -79,10 +109,9 @@
 				<tbody>
 					<tr v-for='server in servers'>
 						<td class='count'>{{server.numberOfClients}}</td>
-						<td v-if='isTeamMode(server.gameMode)'>
+						<td>
 							<a :href='"#"+server.address' class='subtle'>{{server.description}}</a>
 						</td>
-						<td v-else>{{server.description}}</td>
 						<td>{{server.gameMode}}</td>
 						<td>{{server.map}}</td>
 						<td class='centered'>{{formatTimeLeft(server.secsLeft)}}</td>
@@ -108,10 +137,13 @@
 	<script src='/js/extinfo.js'></script>
 
 	<script>
-		var pad = m => (m < 10 ? '0' : '') + m
-		var formatTimeLeft = s => pad(Math.floor(s / 60)) + ':' + pad(s % 60)
+		const pad = m => (m < 10 ? '0' : '') + m
+		const formatTimeLeft = s => pad(Math.floor(s / 60)) + ':' + pad(s % 60)
+		const bgImgOverlayCSS = 'linear-gradient(rgba(0, 0, 0, .3), rgba(0, 0, 0, .3))'
+		const bgImgMapshotCSS = map => `url('//sauertracker.net/images/mapshots/${map}.jpg') no-repeat center center / cover`
+		const bgImgFallbackCSS = bgImgMapshotCSS('firstevermap')
 
-		var model = {
+		const model = {
 			info: {
 				description: 'loading …',
 				gameMode: 'ffa',
@@ -122,6 +154,7 @@
 				maxNumberOfClients: 0
 			},
 			teams: {},
+			teamless: [],
 			spectators: [],
 			servers: []
 		}
@@ -130,7 +163,7 @@
 			el: '#scoreboard',
 			data: model,
 			computed: {
-				backgroundImageCSS: () => `url('//sauertracker.net/images/mapshots/${model.info.map}.jpg') no-repeat center center / cover, #555`
+				backgroundImageCSS: () => `${bgImgOverlayCSS}, ${bgImgMapshotCSS(model.info.map)}, ${bgImgFallbackCSS}`
 			},
 			methods: {
 				formatTimeLeft: formatTimeLeft

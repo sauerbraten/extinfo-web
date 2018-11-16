@@ -32,10 +32,11 @@ body {
 }
 
 #scoreboard {
-	background: url('//sauertracker.net/images/mapshots/firstevermap.jpg') no-repeat center center / cover, #555;
-	background-blend-mode: overlay;
+	padding-bottom: 1em;
+	background: linear-gradient(rgba(0, 0, 0, .3), rgba(0, 0, 0, .3)), url('//sauertracker.net/images/mapshots/firstevermap.jpg') no-repeat center center / cover;
 	color: white;
-	text-shadow: 0 0 10px black;
+	--text-shadow-blur-radius: .5em;
+	text-shadow: 0 0 var(--text-shadow-blur-radius) black;
 	box-shadow: 0 0 2px 0px black;
 }
 
@@ -75,7 +76,11 @@ h2, h3 {
 
 h3 {
 	font-weight: normal;
-	text-transform: uppercase;
+}
+
+#scoreboard h3 {
+	padding: var(--text-shadow-blur-radius);
+	margin: 0 auto;
 }
 
 table {
@@ -116,4 +121,12 @@ a {
 .centered {
 	justify-content: center;
 	text-align: center;
+}
+
+.priv-master {
+	color: #40FF80;
+}
+
+.priv-admin {
+	color: #FF8000;
 }

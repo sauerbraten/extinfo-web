@@ -99,7 +99,7 @@ func (sp *ServerPoller) update() error {
 		return errors.New("error getting basic info from server: " + err.Error())
 	}
 
-	if sp.WithTeams {
+	if sp.WithTeams && extinfo.IsTeamMode(update.ServerInfo.GameMode) {
 		teams, err := sp.server.GetTeamScores()
 		if err != nil {
 			return errors.New("error getting info about team scores from server: " + err.Error())
