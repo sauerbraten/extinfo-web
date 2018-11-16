@@ -37,6 +37,7 @@ function reset() {
 			maxNumberOfClients: 0
 		}
 		model.teams = {}
+		model.teamless = []
 		model.spectators = []
 	}
 
