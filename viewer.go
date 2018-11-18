@@ -81,6 +81,18 @@ func subscribeWebsocket(resp http.ResponseWriter, req *http.Request, topic strin
 		Updates:       updates,
 	}
 
+	go func() {
+		for {
+			_, _, err := viewer.ReadMessage()
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+					debug(err)
+				}
+				return
+			}
+		}
+	}()
+
 	viewer.writeUpdatesUntilClose()
 
 	broker.Unsubscribe(updates, topic)
