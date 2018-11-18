@@ -27,7 +27,7 @@ function reset() {
 		sock = null
 
 		document.title = 'loading … – extinfo'
-		model.info = {
+		scoreboard.info = {
 			description: 'loading …',
 			gameMode: 'ffa',
 			map: 'firstevermap',
@@ -36,9 +36,9 @@ function reset() {
 			numberOfClients: 0,
 			maxNumberOfClients: 0
 		}
-		model.teams = {}
-		model.teamless = []
-		model.spectators = []
+		scoreboard.teams = {}
+		scoreboard.teamless = []
+		scoreboard.spectators = []
 	}
 
 	addr = window.location.hash.substring(1)
@@ -48,50 +48,49 @@ function reset() {
 }
 
 function initsocket() {
-	sock = new WebSocket(protocol + '//' + window.location.host + '/server/' + addr)
+	sock = new WebSocket(`${protocol}//${window.location.host}/server/${addr}`)
+	window.addEventListener('beforeunload', () => sock.close())
 
 	sock.onerror = () => alert('could not connect to a server at that address!')
 
 	sock.onmessage = m => {
-		var update = JSON.parse(m.data)
+		let update = JSON.parse(m.data)
 
-		model.info = update.serverinfo
-
+		scoreboard.info = update.serverinfo
 		document.title = update.serverinfo.description + ' – extinfo'
-		spectators = []
+
+		let teams = {}, teamless = [], spectators = []
 
 		if ('teams' in update) {
-			for (teamName in update.teams) {
-				update.teams[teamName].players = []
+			for (const teamName in update.teams) {
+				teams[teamName] = update.teams[teamName]
+				teams[teamName].players = []
 			}
-		} else {
-			update.teamless = []
 		}
 
-		for (cn in update.players) {
-			var player = update.players[cn]
+		for (const cn in update.players) {
+			let player = update.players[cn]
 			if (player.state == 'spectator') {
 				spectators.push(player)
-			} else if ('teams' in update && player.team in update.teams) {
-				update.teams[player.team].players.push(player)
+			} else if (player.team in teams) {
+				teams[player.team].players.push(player)
 			} else {
-				update.teamless.push(player)
+				teamless.push(player)
 			}
 		}
 
-		if ('teams' in update) {
-			for (teamName in update.teams) {
-				update.teams[teamName].players.sort(scoreboardSortingFunction)
+		if (Object.keys(teams).length > 0) {
+			for (const teamName in teams) {
+				teams[teamName].players.sort(scoreboardSortingFunction)
 			}
-			model.teamless = []
-			model.teams = update.teams
+			scoreboard.teamless = []
+			scoreboard.teams = teams
 		} else {
-			update.teamless.sort(scoreboardSortingFunction)
-			model.teams = []
-			model.teamless = update.teamless
+			teamless.sort(scoreboardSortingFunction)
+			scoreboard.teams = []
+			scoreboard.teamless = teamless
 		}
-		model.spectators = spectators
-
+		scoreboard.spectators = spectators
 	}
 }
 
@@ -109,13 +108,14 @@ function scoreboardSortingFunction(a, b) {
 }
 
 function initmaster() {
-	master = new WebSocket(protocol + '//' + window.location.host + '/master')
+	master = new WebSocket(`${protocol}//${window.location.host}/master`)
+	window.addEventListener('beforeunload', () => master.close())
 
 	master.onerror = () => alert('could not connect to the master server!')
 
 	master.onmessage = m => {
-		var serverlistUpdate = JSON.parse(m.data)
-		serverlistUpdate.sort((a, b) => b.numberOfClients - a.numberOfClients)
-		model.servers = serverlistUpdate
+		let update = JSON.parse(m.data)
+		update.sort((a, b) => b.numberOfClients - a.numberOfClients)
+		serverlist.servers = update
 	}
 }

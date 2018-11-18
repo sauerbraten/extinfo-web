@@ -24,19 +24,19 @@
 			<h3 class='scrollable-x'>
 				<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong>
 				<br>
-				{{formatTimeLeft(info.secsLeft)}} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
+				<time-remaining :secs-left='info.secsLeft'></time-remaining> | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
 			</h3>
 		</header>
 
 		<section class='flex flex-row'>
-			<player-list v-for='team in teams' :title='`${team.name}: ${team.score}`' :players='team.players'></player-list>
+			<player-list v-for='team in teams' :key='team.name' :title='`${team.name}: ${team.score}`' :players='team.players'></player-list>
 			<player-list v-if='teamless.length > 0' :players='teamless'></player-list>
 		</section>
 
 		<section v-show='spectators.length > 0'>
 			<h2>spectators</h2>
 			<div class='flex flex-row centered'>
-				<player-name v-for='spectator in spectators' :player='spectator'></player-name>
+				<player-name v-for='spectator in spectators' :key='spectator.clientNum' :player='spectator'></player-name>
 			</div>
 		</section>
 	</main>
@@ -63,7 +63,7 @@
 						</td>
 						<td>{{server.gameMode}}</td>
 						<td>{{server.map}}</td>
-						<td class='centered'>{{formatTimeLeft(server.secsLeft)}}</td>
+						<td class='centered'><time-remaining :secs-left='server.secsLeft'></time-remaining></td>
 						<td>{{server.masterMode}}</td>
 					</tr>
 				</tbody>
@@ -86,27 +86,44 @@
 	<script src='/js/extinfo.js'></script>
 
 	<script>
-		const pad = m => (m < 10 ? '0' : '') + m
-		const formatTimeLeft = s => pad(Math.floor(s / 60)) + ':' + pad(s % 60)
-		const bgImgOverlayCSS = 'linear-gradient(rgba(0, 0, 0, .3), rgba(0, 0, 0, .3))'
-		const bgImgMapshotCSS = map => `url('//sauertracker.net/images/mapshots/${map}.jpg') no-repeat center center / cover`
-		const bgImgFallbackCSS = bgImgMapshotCSS('firstevermap')
-
-		const model = {
-			info: {
-				description: 'loading …',
-				gameMode: 'ffa',
-				map: 'firstevermap',
-				secsLeft: 0,
-				masterMode: 'open',
-				numberOfClients: 0,
-				maxNumberOfClients: 0
+		Vue.component('time-remaining', {
+			props: {
+				secsLeft: {
+					type: Number,
+					default: 0
+				}
 			},
-			teams: {},
-			teamless: [],
-			spectators: [],
-			servers: []
-		}
+			data() {
+				return {
+					liveSecsLeft: 0,
+					secsLeftUpdaters: []
+				}
+			},
+			watch: {
+				secsLeft: {
+					handler: function(newSecsLeft) {
+						for (const updater of this.secsLeftUpdaters) {
+							window.clearTimeout(updater)
+						}
+						this.secsLeftUpdaters = []
+						this.liveSecsLeft = newSecsLeft
+						for (let i = 1; i < 5 && i <= newSecsLeft; i++) {
+							this.secsLeftUpdaters.push(window.setTimeout(() => this.liveSecsLeft--, i*1000))
+						}
+					},
+					immediate: true
+				}
+			},
+			computed: {
+				timeLeft() {
+					const pad = i => (i < 10 ? '0' : '') + i
+					const formatTimeLeft = s => `${pad(Math.floor(s / 60))}:${pad(s % 60)}`
+					return formatTimeLeft(this.liveSecsLeft)
+				}
+			},
+			template: `<span>{{timeLeft}}</span>`
+		})
+
 
 		Vue.component('player-name', {
 			props: {
@@ -164,22 +181,41 @@
 				</div>`,
 		})
 
+		const bgImgOverlayCSS = 'linear-gradient(rgba(0, 0, 0, .3), rgba(0, 0, 0, .3))'
+		const bgImgMapshotCSS = map => `url('//sauertracker.net/images/mapshots/${map}.jpg') no-repeat center center / cover`
+		const bgImgFallbackCSS = bgImgMapshotCSS('firstevermap')
+
+		const scoreboard = {
+			info: {
+				description: 'loading...',
+				gameMode: 'ffa',
+				map: 'firstevermap',
+				secsLeft: 0,
+				masterMode: 'open',
+				numberOfClients: 0,
+				maxNumberOfClients: 0
+			},
+			teams: {},
+			teamless: [],
+			spectators: [],
+		}
+
 		new Vue({
 			el: '#scoreboard',
-			data: model,
+			data: scoreboard,
 			computed: {
-				backgroundImageCSS: () => `${bgImgOverlayCSS}, ${bgImgMapshotCSS(model.info.map)}, ${bgImgFallbackCSS}`
-			},
-			methods: {
-				formatTimeLeft: formatTimeLeft
+				backgroundImageCSS: () => `${bgImgOverlayCSS}, ${bgImgMapshotCSS(scoreboard.info.map)}, ${bgImgFallbackCSS}`
 			}
 		})
 
+		const serverlist = {
+			servers: []
+		}
+
 		new Vue({
 			el: '#serverlist',
-			data: model,
+			data: serverlist,
 			methods: {
-				formatTimeLeft: formatTimeLeft,
 				isTeamMode: mode => !(['ffa', 'coop edit', 'instagib', 'efficiency', 'tactics'].includes(mode))
 			}
 		})
