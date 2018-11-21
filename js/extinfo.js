@@ -28,7 +28,7 @@ function reset() {
 
 		document.title = 'loading … – extinfo'
 		scoreboard.info = {
-			description: 'loading …',
+			description: 'loading...',
 			gameMode: 'ffa',
 			map: 'firstevermap',
 			secsLeft: 0,
