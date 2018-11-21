@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"log"
+	"net"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -42,8 +45,15 @@ func (v *Viewer) writeUpdatesUntilClose() {
 
 // handles websocket connections subscribing for server state updates
 func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-	addr := params.ByName("addr")
-	topic := addr + " (detailed)"
+	_addr := params.ByName("addr")
+	topic := _addr + " (detailed)"
+
+	addr, err := net.ResolveUDPAddr("udp", _addr)
+	if err != nil {
+		resp.WriteHeader(http.StatusBadRequest)
+		io.WriteString(resp, fmt.Sprintf("'%s' could not be resolved as UDP address", _addr))
+		return
+	}
 
 	log.Println(req.RemoteAddr, "started watching", topic)
 
@@ -63,10 +73,7 @@ func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.
 	log.Println(req.RemoteAddr, "started watching the master server list")
 
 	watch(resp, req, DefaultMasterServerAddress, func(publisher *pubsub.Publisher) error {
-		NewServerListPoller(
-			publisher,
-			func(msp *ServerListPoller) { msp.MasterServerAddress = DefaultMasterServerAddress },
-		)
+		NewServerListPoller(publisher)
 		return nil
 	})
 

@@ -16,7 +16,7 @@ type ServerPoller struct {
 	*pubsub.Publisher
 
 	server      *extinfo.Server
-	Address     string
+	Address     *net.UDPAddr
 	WithTeams   bool
 	WithPlayers bool
 }
@@ -30,15 +30,11 @@ func NewServerPoller(publisher *pubsub.Publisher, config ...func(*ServerPoller))
 		configFunc(sp)
 	}
 
-	host, port, err := hostAndPort(sp.Address)
+	_server, err := extinfo.NewServer(*sp.Address, 10*time.Second)
 	if err != nil {
 		return err
 	}
-
-	sp.server, err = extinfo.NewServer(host, port, 10*time.Second)
-	if err != nil {
-		return err
-	}
+	sp.server = _server
 
 	go sp.loop()
 
