@@ -27,7 +27,7 @@ body {
 	justify-content: space-around;
 }
 
-#scoreboard, #serverlist, footer {
+main, aside, footer {
 	margin-bottom: 1em;
 }
 
