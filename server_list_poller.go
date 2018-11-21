@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"log"
-	"net"
-	"strings"
 	"time"
 
 	"encoding/json"
 
+	"github.com/sauerbraten/chef/pkg/master"
 	"github.com/sauerbraten/extinfo"
 	"github.com/sauerbraten/pubsub"
 )
@@ -26,7 +24,7 @@ type ServerListPoller struct {
 	*pubsub.Publisher
 	subscriptions map[string]chan []byte // server address → update channel
 
-	MasterServerAddress string
+	ms *master.Server
 
 	serverStates  map[string]extinfo.BasicInfo
 	serverUpdates chan serverListEntryUpdate // all update channels are merged into this channel
@@ -35,9 +33,10 @@ type ServerListPoller struct {
 func NewServerListPoller(publisher *pubsub.Publisher, conf ...func(*ServerListPoller)) {
 	slp := &ServerListPoller{
 		Publisher:     publisher,
+		subscriptions: map[string]chan []byte{},
+		ms:            master.New(DefaultMasterServerAddress, 15*time.Second),
 		serverStates:  map[string]extinfo.BasicInfo{},
 		serverUpdates: make(chan serverListEntryUpdate),
-		subscriptions: map[string]chan []byte{},
 	}
 
 	for _, configFunc := range conf {
@@ -129,23 +128,7 @@ func (slp *ServerListPoller) storeServerUpdate(supd serverListEntryUpdate) {
 }
 
 func (slp *ServerListPoller) refreshServers() error {
-	// open connection
-	conn, err := net.DialTimeout("tcp", slp.MasterServerAddress, 15*time.Second)
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
-
-	in := bufio.NewScanner(conn)
-	out := bufio.NewWriter(conn)
-
-	// request new list
-	_, err = out.WriteString("list\n")
-	if err != nil {
-		return err
-	}
-
-	err = out.Flush()
+	servers, err := slp.ms.ServerList()
 	if err != nil {
 		return err
 	}
@@ -153,57 +136,43 @@ func (slp *ServerListPoller) refreshServers() error {
 	updatedList := map[string]extinfo.BasicInfo{}
 
 	// process response
-	for in.Scan() {
-		msg := in.Text()
-		if msg == "\x00" {
-			// end of list
-			continue
-		}
-
-		msg = strings.TrimPrefix(msg, "addserver ")
-		msg = strings.TrimSpace(msg)
-
-		addr := strings.Replace(msg, " ", ":", -1)
-
+	for topic, addr := range servers {
 		// keep old state if possible
-		oldState, known := slp.serverStates[addr]
-		updatedList[addr] = oldState
+		oldState, known := slp.serverStates[topic]
+		updatedList[topic] = oldState
 
 		if !known {
 			// subscribe to updates if the server is new
-			updates, publisher := broker.Subscribe(addr)
+			updates, publisher := broker.Subscribe(topic)
 			if publisher != nil {
 				err = NewServerPoller(
 					publisher,
-					func(sp *ServerPoller) { sp.Address = addr },
+					func(sp *ServerPoller) { sp.Address = topic },
 				)
 				if err != nil {
 					return err
 				}
 			}
 
-			slp.subscriptions[addr] = updates
+			slp.subscriptions[topic] = updates
 
 			// merge updates from all servers into one channel to select on
-			go func(addr string, updates <-chan []byte) {
+			go func(topic string, updates <-chan []byte) {
 				for upd := range updates {
 					slp.serverUpdates <- serverListEntryUpdate{
-						Address: addr,
+						Address: topic,
 						Update:  upd,
 					}
 				}
-			}(addr, updates)
+			}(topic, updates)
 		}
-	}
-	if err := in.Err(); err != nil {
-		return err
 	}
 
 	// unsubscribe from updates about servers not on the list anymore
-	for addr := range slp.serverStates {
-		if _, ok := updatedList[addr]; !ok {
-			broker.Unsubscribe(slp.subscriptions[addr], addr)
-			delete(slp.subscriptions, addr)
+	for topic := range slp.serverStates {
+		if _, ok := updatedList[topic]; !ok {
+			broker.Unsubscribe(slp.subscriptions[topic], topic)
+			delete(slp.subscriptions, topic)
 		}
 	}
 

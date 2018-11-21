@@ -16,7 +16,7 @@ type ServerPoller struct {
 	*pubsub.Publisher
 
 	server      *extinfo.Server
-	Address     string
+	Address     *net.UDPAddr
 	WithTeams   bool
 	WithPlayers bool
 }
