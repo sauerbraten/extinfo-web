@@ -1,0 +1,24 @@
+image: alpine/edge
+packages:
+  - go
+  - rsync
+sources:
+  - https://github.com/sauerbraten/extinfo-web
+environment:
+  DEPLOY: p1x.pw
+  GOPATH: $HOME
+secrets:
+  - 98c1b481-b37f-452f-872a-8f8fa1833249
+tasks:
+  - prepare_gopath: |
+      mkdir -p src/github.com/sauerbraten
+      mv extinfo-web src/github.com/sauerbraten/
+  - build: |
+      cd src/github.com/sauerbraten/extinfo-web
+      go get
+      go build
+  - deploy: |
+      cd src/github.com/sauerbraten/extinfo-web
+      rsync --rsh="ssh -o StrictHostKeyChecking=no" -rPq css html js extinfo-web ci@$DEPLOY:~/extinfo-web/
+      ssh -o StrictHostKeyChecking=no ci@$DEPLOY 'killall extinfo-web || true'
+      ssh -o StrictHostKeyChecking=no ci@$DEPLOY 'cd extinfo-web; nohup ./extinfo-web >> log.txt 2>&1 &'
