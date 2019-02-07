@@ -18,6 +18,11 @@ type serverListEntryUpdate struct {
 	Update  []byte
 }
 
+type serverState struct {
+	extinfo.BasicInfo
+	Mod string `json:"mod"`
+}
+
 // ServerListPoller polls the master server and publishes updates about the server list by
 // starting a poller for the basic info of each server on the list and subscribing to its updates.
 type ServerListPoller struct {
@@ -26,7 +31,7 @@ type ServerListPoller struct {
 
 	ms *master.Server
 
-	serverStates  map[string]extinfo.BasicInfo
+	serverStates  map[string]serverState
 	serverUpdates chan serverListEntryUpdate // all update channels are merged into this channel
 }
 
@@ -37,7 +42,7 @@ func NewServerListPoller(publisher *pubsub.Publisher) {
 
 		ms: master.New(DefaultMasterServerAddress, 15*time.Second),
 
-		serverStates:  map[string]extinfo.BasicInfo{},
+		serverStates:  map[string]serverState{},
 		serverUpdates: make(chan serverListEntryUpdate),
 	}
 
@@ -122,7 +127,10 @@ func (slp *ServerListPoller) storeServerUpdate(supd serverListEntryUpdate) {
 		return
 	}
 
-	slp.serverStates[supd.Address] = serverUpdate.ServerInfo
+	slp.serverStates[supd.Address] = serverState{
+		serverUpdate.ServerInfo,
+		serverUpdate.Mod,
+	}
 }
 
 func (slp *ServerListPoller) refreshServers() error {
@@ -131,7 +139,7 @@ func (slp *ServerListPoller) refreshServers() error {
 		return err
 	}
 
-	updatedList := map[string]extinfo.BasicInfo{}
+	updatedList := map[string]serverState{}
 
 	// process response
 	for topic, addr := range servers {
@@ -181,7 +189,7 @@ func (slp *ServerListPoller) refreshServers() error {
 
 type serverListEntry struct {
 	Address string `json:"address"`
-	extinfo.BasicInfo
+	serverState
 }
 
 func (slp *ServerListPoller) publishUpdate() error {
@@ -191,8 +199,8 @@ func (slp *ServerListPoller) publishUpdate() error {
 			continue
 		}
 		serverList = append(serverList, serverListEntry{
-			Address:   addr,
-			BasicInfo: state,
+			Address:     addr,
+			serverState: state,
 		})
 	}
 

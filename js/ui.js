@@ -134,7 +134,7 @@ Vue.component('server-list', {
                         <tr v-for='server in servers'>
                             <td class='count'>{{server.numberOfClients}}</td>
                             <td>
-                                <a :href='"#"+server.address' class='subtle'>{{server.description}}</a>
+                                <a :href='"#"+server.address' class='subtle' :title='server.mod ? server.mod : ""'>{{server.description}}</a>
                             </td>
                             <td>{{server.gameMode}}</td>
                             <td>{{server.map}}</td>

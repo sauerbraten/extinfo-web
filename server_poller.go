@@ -84,6 +84,7 @@ type ServerStateUpdate struct {
 	ServerInfo extinfo.BasicInfo            `json:"serverinfo"`
 	Teams      map[string]extinfo.TeamScore `json:"teams,omitempty"`
 	Players    map[int]extinfo.ClientInfo   `json:"players,omitempty"`
+	Mod        string                       `json:"mod,omitempty"`
 }
 
 func (sp *ServerPoller) update() error {
@@ -92,13 +93,18 @@ func (sp *ServerPoller) update() error {
 
 	update.ServerInfo, err = sp.server.GetBasicInfo()
 	if err != nil {
-		return errors.New("error getting basic info from server: " + err.Error())
+		return errors.New("error getting basic info from server:" + err.Error())
+	}
+
+	update.Mod, err = sp.server.GetServerMod()
+	if err != nil {
+		log.Printf("error detecting mod of %s: %v", sp.Address, err.Error())
 	}
 
 	if sp.WithTeams && extinfo.IsTeamMode(update.ServerInfo.GameMode) {
 		teams, err := sp.server.GetTeamScores()
 		if err != nil {
-			return errors.New("error getting info about team scores from server: " + err.Error())
+			return errors.New("error getting info about team scores from server:" + err.Error())
 		}
 		update.Teams = teams.Scores
 	}
@@ -106,7 +112,7 @@ func (sp *ServerPoller) update() error {
 	if sp.WithPlayers {
 		update.Players, err = sp.server.GetAllClientInfo()
 		if err != nil {
-			return errors.New("error getting info about all clients from server: " + err.Error())
+			return errors.New("error getting info about all clients from server:" + err.Error())
 		}
 	}
 
