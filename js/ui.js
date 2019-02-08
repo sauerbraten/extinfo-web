@@ -5,6 +5,10 @@ Vue.component('time-remaining', {
         secsLeft: {
             type: Number,
             default: 0
+        },
+        paused: {
+            type: Boolean,
+            default: false
         }
     },
     data() {
@@ -21,8 +25,10 @@ Vue.component('time-remaining', {
                 }
                 this.secsLeftUpdaters = []
                 this.liveSecsLeft = newSecsLeft
-                for (let i = 1; i < 5 && i <= newSecsLeft; i++) {
-                    this.secsLeftUpdaters.push(window.setTimeout(() => this.liveSecsLeft--, i * 1000))
+                if (!this.paused) {
+                    for (let i = 1; i < 5 && i <= newSecsLeft; i++) {
+                        this.secsLeftUpdaters.push(window.setTimeout(() => this.liveSecsLeft--, i * 1000))
+                    }
                 }
             },
             immediate: true
@@ -138,7 +144,7 @@ Vue.component('server-list', {
                             </td>
                             <td>{{server.gameMode}}</td>
                             <td>{{server.map}}</td>
-                            <td class='centered'><time-remaining :secs-left='server.secsLeft'></time-remaining></td>
+                            <td class='centered'><time-remaining :secs-left='server.secsLeft' :paused='server.paused'></time-remaining></td>
                             <td>{{server.masterMode}}</td>
                         </tr>
                     </tbody>

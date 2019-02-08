@@ -24,7 +24,7 @@
 			<h3 class='scrollable-x'>
 				<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong>
 				<br>
-				<time-remaining :secs-left='info.secsLeft'></time-remaining> | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
+				<time-remaining :secs-left='info.secsLeft' :paused='info.paused'></time-remaining>{{info.paused ? ' | paused' : '' }} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
 			</h3>
 		</header>
 
