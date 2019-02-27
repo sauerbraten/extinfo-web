@@ -2,7 +2,7 @@
 
 Go web app that lets you track the state of a Cube 2: Sauerbraten game server.
 
-Try it [here](http://extinfo.sauerworld.org/)!
+Try it [here](https://extinfo.p1x.pw/)!
 
 ## How it works
 
