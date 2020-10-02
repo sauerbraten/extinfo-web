@@ -5,9 +5,9 @@ packages:
 sources:
   - https://github.com/sauerbraten/extinfo-web
 environment:
-  DEPLOY: ng.p1x.pw
+  DEPLOY: p1x.pw
 secrets:
-  - 956ddc04-c911-4147-bc90-30bb08276c3e # ci@ng.p1x.pw ssh key
+  - 956ddc04-c911-4147-bc90-30bb08276c3e # ci@p1x.pw ssh key
 tasks:
   - prepare_go_modules: |
       go env -w GOFLAGS=-mod=vendor
@@ -17,5 +17,4 @@ tasks:
   - deploy: |
       cd extinfo-web
       rsync --rsh="ssh -o StrictHostKeyChecking=no" -rPq css html js extinfo-web ci@$DEPLOY:~/extinfo-web/
-      ssh -o StrictHostKeyChecking=no ci@$DEPLOY 'killall extinfo-web || true'
-      ssh -o StrictHostKeyChecking=no ci@$DEPLOY 'cd extinfo-web; nohup ./extinfo-web >> log.txt 2>&1 &'
+      ssh -o StrictHostKeyChecking=no ci@$DEPLOY 'sudo systemctl restart extinfo-web'
