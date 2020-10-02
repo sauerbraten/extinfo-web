@@ -1,15 +1,16 @@
-image: alpine/latest
+image: fedora/32
 packages:
   - go
   - rsync
 sources:
   - https://github.com/sauerbraten/extinfo-web
 environment:
-  DEPLOY: p1x.pw
-  GOFLAGS: '-mod=vendor'
+  DEPLOY: ng.p1x.pw
 secrets:
-  - 41a695fb-4229-450d-9aa4-5499f6bcea81 # ssh key
+  - 956ddc04-c911-4147-bc90-30bb08276c3e # ci@ng.p1x.pw ssh key
 tasks:
+  - prepare_go_modules: |
+      go env -w GOFLAGS=-mod=vendor
   - build: |
       cd extinfo-web
       go build
