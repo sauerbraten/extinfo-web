@@ -2,9 +2,9 @@
 github.com/gorilla/websocket
 # github.com/julienschmidt/httprouter v1.3.0
 github.com/julienschmidt/httprouter
-# github.com/sauerbraten/chef v0.0.0-20191118162719-667c29cf265c
+# github.com/sauerbraten/chef v0.0.0-20210321122126-2a584d69522d
 github.com/sauerbraten/chef/pkg/master
-# github.com/sauerbraten/cubecode v0.0.0-20170529180859-6be16020d14c
+# github.com/sauerbraten/cubecode v0.0.0-20191118162217-05ee938b0ef7
 github.com/sauerbraten/cubecode
 # github.com/sauerbraten/extinfo v0.0.0-20191118162349-0387c695e739
 github.com/sauerbraten/extinfo
