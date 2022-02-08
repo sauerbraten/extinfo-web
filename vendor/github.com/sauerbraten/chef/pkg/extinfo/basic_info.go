@@ -22,18 +22,26 @@ type BasicInfoRaw struct {
 
 // BasicInfo contains the parsed information sent back from the server, i.e. game mode and master mode are translated into human readable strings.
 type BasicInfo struct {
-	BasicInfoRaw
+	*BasicInfoRaw
 	GameMode   string `json:"gameMode"`   // current game mode
 	MasterMode string `json:"masterMode"` // the current master mode of the server
 }
 
 // GetBasicInfoRaw queries a Sauerbraten server at addr on port and returns the raw response or an error in case something went wrong. Raw response means that the int values sent as game mode and master mode are NOT translated into the human readable name.
-func (s *Server) GetBasicInfoRaw() (basicInfoRaw BasicInfoRaw, err error) {
-	var response *cubecode.Packet
-	response, err = s.queryServer(buildRequest(InfoTypeBasic, 0, 0))
+func (s *Server) GetBasicInfoRaw() (basicInfoRaw *BasicInfoRaw, err error) {
+	request := []byte{InfoTypeBasic}
+
+	c, err := s.pinger.send(s.host, s.port, request, s.timeOut)
 	if err != nil {
-		return
+		return nil, err
 	}
+
+	response, err := parseResponse(request, <-c)
+	if err != nil {
+		return nil, err
+	}
+
+	basicInfoRaw = &BasicInfoRaw{}
 
 	basicInfoRaw.NumberOfClients, err = response.ReadInt()
 	if err != nil {
@@ -120,12 +128,12 @@ func (s *Server) GetBasicInfoRaw() (basicInfoRaw BasicInfoRaw, err error) {
 }
 
 // GetBasicInfo queries a Sauerbraten server at addr on port and returns the parsed response or an error in case something went wrong. Parsed response means that the int values sent as game mode and master mode are translated into the human readable name, e.g. '12' -> "insta ctf".
-func (s *Server) GetBasicInfo() (BasicInfo, error) {
-	basicInfo := BasicInfo{}
+func (s *Server) GetBasicInfo() (*BasicInfo, error) {
+	basicInfo := &BasicInfo{}
 
 	basicInfoRaw, err := s.GetBasicInfoRaw()
 	if err != nil {
-		return basicInfo, err
+		return nil, err
 	}
 
 	basicInfo.BasicInfoRaw = basicInfoRaw

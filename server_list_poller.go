@@ -1,13 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"net"
+	"strconv"
 	"time"
 
 	"encoding/json"
 
+	"github.com/sauerbraten/chef/pkg/extinfo"
 	"github.com/sauerbraten/chef/pkg/master"
-	"github.com/sauerbraten/extinfo"
 	"github.com/sauerbraten/pubsub"
 )
 
@@ -19,7 +22,7 @@ type serverListEntryUpdate struct {
 }
 
 type serverState struct {
-	extinfo.BasicInfo
+	*extinfo.BasicInfo
 	Mod string `json:"mod"`
 }
 
@@ -142,43 +145,47 @@ func (slp *ServerListPoller) refreshServers() error {
 	updatedList := map[string]serverState{}
 
 	// process response
-	for topic, addr := range servers {
+	for _, addr := range servers {
 		// keep old state if possible
-		oldState, known := slp.serverStates[topic]
-		updatedList[topic] = oldState
+		oldState, known := slp.serverStates[addr]
+		updatedList[addr] = oldState
 
 		if !known {
 			// subscribe to updates if the server is new
-			updates, publisher := broker.Subscribe(topic)
+			updates, publisher := broker.Subscribe(addr)
 			if publisher != nil {
+				host, port, err := hostAndPort(addr)
+				if err != nil {
+					return err
+				}
 				err = NewServerPoller(
 					publisher,
-					func(sp *ServerPoller) { sp.Address = addr },
+					func(sp *ServerPoller) { sp.host = host; sp.port = port },
 				)
 				if err != nil {
 					return err
 				}
 			}
 
-			slp.subscriptions[topic] = updates
+			slp.subscriptions[addr] = updates
 
 			// merge updates from all servers into one channel to select on
-			go func(topic string, updates <-chan []byte) {
+			go func(addr string, updates <-chan []byte) {
 				for upd := range updates {
 					slp.serverUpdates <- serverListEntryUpdate{
-						Address: topic,
+						Address: addr,
 						Update:  upd,
 					}
 				}
-			}(topic, updates)
+			}(addr, updates)
 		}
 	}
 
 	// unsubscribe from updates about servers not on the list anymore
-	for topic := range slp.serverStates {
-		if _, ok := updatedList[topic]; !ok {
-			broker.Unsubscribe(slp.subscriptions[topic], topic)
-			delete(slp.subscriptions, topic)
+	for addr := range slp.serverStates {
+		if _, ok := updatedList[addr]; !ok {
+			broker.Unsubscribe(slp.subscriptions[addr], addr)
+			delete(slp.subscriptions, addr)
 		}
 	}
 
@@ -195,7 +202,7 @@ type serverListEntry struct {
 func (slp *ServerListPoller) publishUpdate() error {
 	serverList := []serverListEntry{}
 	for addr, state := range slp.serverStates {
-		if state.NumberOfClients <= 0 {
+		if state.BasicInfo == nil || state.NumberOfClients <= 0 {
 			continue
 		}
 		serverList = append(serverList, serverListEntry{
@@ -212,4 +219,18 @@ func (slp *ServerListPoller) publishUpdate() error {
 	slp.Publish(update)
 
 	return nil
+}
+
+func hostAndPort(addr string) (string, int, error) {
+	host, _port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", -1, fmt.Errorf("parsing '%s' as host:port tuple: %v", addr, err)
+	}
+
+	port, err := strconv.Atoi(_port)
+	if err != nil {
+		return "", -1, fmt.Errorf("error converting port '%s' to int: %v", _port, err)
+	}
+
+	return host, port, nil
 }

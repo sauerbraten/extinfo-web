@@ -1,10 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -45,13 +43,13 @@ func (v *Viewer) writeUpdatesUntilClose() {
 
 // handles websocket connections subscribing for server state updates
 func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-	_addr := params.ByName("addr")
-	topic := _addr + " (detailed)"
+	addr := params.ByName("addr")
+	topic := addr + " (detailed)"
 
-	addr, err := net.ResolveUDPAddr("udp", _addr)
+	host, port, err := hostAndPort(addr)
 	if err != nil {
 		resp.WriteHeader(http.StatusBadRequest)
-		io.WriteString(resp, fmt.Sprintf("'%s' could not be resolved as UDP address", _addr))
+		io.WriteString(resp, err.Error())
 		return
 	}
 
@@ -62,7 +60,7 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 			publisher,
 			func(sp *ServerPoller) { sp.WithPlayers = true },
 			func(sp *ServerPoller) { sp.WithTeams = true },
-			func(sp *ServerPoller) { sp.Address = addr },
+			func(sp *ServerPoller) { sp.host = host; sp.port = port },
 		)
 	})
 

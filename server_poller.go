@@ -4,11 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"net"
-	"strconv"
 	"time"
 
-	"github.com/sauerbraten/extinfo"
+	"github.com/sauerbraten/chef/pkg/extinfo"
 	"github.com/sauerbraten/pubsub"
 )
 
@@ -16,7 +14,8 @@ type ServerPoller struct {
 	*pubsub.Publisher
 
 	server      *extinfo.Server
-	Address     *net.UDPAddr
+	host        string
+	port        int
 	WithTeams   bool
 	WithPlayers bool
 }
@@ -30,7 +29,7 @@ func NewServerPoller(publisher *pubsub.Publisher, config ...func(*ServerPoller))
 		configFunc(sp)
 	}
 
-	_server, err := extinfo.NewServer(*sp.Address, 10*time.Second)
+	_server, err := extinfo.NewServer(pinger, sp.host, sp.port, 10*time.Second)
 	if err != nil {
 		return err
 	}
@@ -81,9 +80,9 @@ func (sp *ServerPoller) loop() {
 }
 
 type ServerStateUpdate struct {
-	ServerInfo extinfo.BasicInfo            `json:"serverinfo"`
+	ServerInfo *extinfo.BasicInfo           `json:"serverinfo"`
 	Teams      map[string]extinfo.TeamScore `json:"teams,omitempty"`
-	Players    map[int]extinfo.ClientInfo   `json:"players,omitempty"`
+	Players    map[int]*extinfo.ClientInfo  `json:"players,omitempty"`
 	Mod        string                       `json:"mod,omitempty"`
 }
 
@@ -98,7 +97,7 @@ func (sp *ServerPoller) update() error {
 
 	update.Mod, err = sp.server.GetServerMod()
 	if err != nil {
-		log.Printf("error detecting mod of %s: %v", sp.Address, err.Error())
+		log.Printf("error detecting mod of %s:%d: %v", sp.host, sp.port, err.Error())
 	}
 
 	if sp.WithTeams && extinfo.IsTeamMode(update.ServerInfo.GameMode) {
@@ -110,7 +109,7 @@ func (sp *ServerPoller) update() error {
 	}
 
 	if sp.WithPlayers {
-		update.Players, err = sp.server.GetAllClientInfo()
+		update.Players, err = sp.server.GetClientInfo(-1)
 		if err != nil {
 			return errors.New("error getting info about all clients from server: " + err.Error())
 		}
@@ -124,18 +123,4 @@ func (sp *ServerPoller) update() error {
 	sp.Publish(updateJSON)
 
 	return nil
-}
-
-func hostAndPort(addr string) (string, int, error) {
-	host, _port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return "", -1, errors.New("could not split address into host and port: " + err.Error())
-	}
-
-	port, err := strconv.Atoi(_port)
-	if err != nil {
-		return "", -1, errors.New("could not convert port to int: " + err.Error())
-	}
-
-	return host, port, nil
 }

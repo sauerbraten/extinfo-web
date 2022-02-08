@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
+	"github.com/sauerbraten/chef/pkg/extinfo"
 	"github.com/sauerbraten/pubsub"
 )
 
@@ -15,6 +16,16 @@ var upgrader = websocket.Upgrader{
 }
 
 var broker = pubsub.NewBroker()
+
+var pinger *extinfo.Pinger
+
+func init() {
+	var err error
+	pinger, err = extinfo.NewPinger(":33333")
+	if err != nil {
+		panic(err)
+	}
+}
 
 func main() {
 	r := httprouter.New()

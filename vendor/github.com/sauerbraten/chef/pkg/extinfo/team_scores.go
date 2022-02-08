@@ -16,17 +16,25 @@ type TeamScoresRaw struct {
 
 // TeamScores contains the game mode as human readable string, the seconds left in the game, and a slice of TeamScores
 type TeamScores struct {
-	TeamScoresRaw
+	*TeamScoresRaw
 	GameMode string `json:"gameMode"` // current game mode
 }
 
 // GetTeamScoresRaw queries a Sauerbraten server at addr on port for the teams' names and scores and returns the raw response and/or an error in case something went wrong or the server is not running a team mode.
-func (s *Server) GetTeamScoresRaw() (teamScoresRaw TeamScoresRaw, err error) {
-	request := buildRequest(InfoTypeExtended, ExtInfoTypeTeamScores, 0)
-	response, err := s.queryServer(request)
+func (s *Server) GetTeamScoresRaw() (teamScoresRaw *TeamScoresRaw, err error) {
+	request := []byte{InfoTypeExtended, ExtInfoTypeTeamScores}
+
+	c, err := s.pinger.send(s.host, s.port, request, s.timeOut)
 	if err != nil {
-		return
+		return nil, err
 	}
+
+	response, err := parseResponse(request, <-c)
+	if err != nil {
+		return nil, err
+	}
+
+	teamScoresRaw = &TeamScoresRaw{}
 
 	teamScoresRaw.GameMode, err = response.ReadInt()
 	if err != nil {

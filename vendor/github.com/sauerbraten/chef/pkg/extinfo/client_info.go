@@ -2,6 +2,7 @@ package extinfo
 
 import (
 	"errors"
+	"fmt"
 	"net"
 
 	"github.com/sauerbraten/cubecode"
@@ -28,83 +29,104 @@ type ClientInfoRaw struct {
 
 // ClientInfo contains the parsed information sent back from the server, i.e. weapon, state and privilege are translated into human readable strings.
 type ClientInfo struct {
-	ClientInfoRaw
+	*ClientInfoRaw
 	Weapon    string `json:"weapon"`    // weapon the client currently has selected
 	Privilege string `json:"privilege"` // "none", "master" or "admin"
 	State     string `json:"state"`     // client state, e.g. "dead" or "spectator"
 }
 
-// GetClientInfoRaw returns the raw information about the client with the given clientNum.
-func (s *Server) GetClientInfoRaw(clientNum int) (clientInfoRaw ClientInfoRaw, err error) {
-	response, err := s.queryServer(buildRequest(InfoTypeExtended, ExtInfoTypeClientInfo, clientNum))
+// GetClientInfoRaw returns the raw information about the client with the given CN.
+func (s *Server) GetClientInfoRaw(cn int) (map[int]*ClientInfoRaw, error) {
+	request := []byte{InfoTypeExtended, ExtInfoTypeClientInfo, byte(cn)}
+
+	c, err := s.pinger.send(s.host, s.port, request, s.timeOut)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	clientInfoRaw, err = parseClientInfoResponse(response)
-	return
+	clientNumList, err := parseResponse(request, <-c)
+	if err != nil {
+		return nil, err
+	}
+
+	cns, err := parseClientNums(clientNumList)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := map[int]*ClientInfoRaw{}
+	for range cns {
+		clientStats, err := parseResponse(request, <-c)
+		if err != nil {
+			return nil, err
+		}
+
+		info, err := parseClientStats(clientStats)
+		if err != nil {
+			return nil, err
+		}
+
+		stats[info.ClientNum] = info
+	}
+
+	return stats, nil
 }
 
-// GetClientInfo returns the parsed information about the client with the given clientNum.
-func (s *Server) GetClientInfo(clientNum int) (clientInfo ClientInfo, err error) {
-	clientInfoRaw, err := s.GetClientInfoRaw(clientNum)
+// GetClientInfo returns the ClientInfo of all Players (including spectators) as a []ClientInfo
+func (s *Server) GetClientInfo(cn int) (map[int]*ClientInfo, error) {
+	rawStats, err := s.GetClientInfoRaw(cn)
 	if err != nil {
-		return clientInfo, err
+		return nil, err
 	}
 
-	clientInfo.ClientInfoRaw = clientInfoRaw
-	clientInfo.Weapon = getWeaponName(clientInfo.ClientInfoRaw.Weapon)
-	clientInfo.Privilege = getPrivilegeName(clientInfo.ClientInfoRaw.Privilege)
-	clientInfo.State = getStateName(clientInfo.ClientInfoRaw.State)
+	stats := map[int]*ClientInfo{}
+	for cn, info := range rawStats {
+		stats[cn] = &ClientInfo{
+			ClientInfoRaw: info,
+			Weapon:        getWeaponName(info.Weapon),
+			Privilege:     getPrivilegeName(info.Privilege),
+			State:         getStateName(info.State),
+		}
+	}
 
-	return clientInfo, nil
+	return stats, nil
 }
 
-// GetAllClientInfo returns the ClientInfo of all Players (including spectators) as a []ClientInfo
-func (s *Server) GetAllClientInfo() (allClientInfo map[int]ClientInfo, err error) {
-	allClientInfo = map[int]ClientInfo{}
-
-	response, err := s.queryServer(buildRequest(InfoTypeExtended, ExtInfoTypeClientInfo, -1))
+func parseClientNums(response *cubecode.Packet) (cns []int, err error) {
+	// expect ClientInfoResponseTypeCNs
+	packetType, err := response.ReadInt()
 	if err != nil {
-		return allClientInfo, err
+		return nil, fmt.Errorf("extinfo: reading client info packet type: %w", err)
+	}
+	if packetType != ClientInfoResponseTypeCNs {
+		return nil, fmt.Errorf("extinfo: parsing client info packet: expected type %d, but got %d", ClientInfoResponseTypeCNs, packetType)
 	}
 
-	// response is multiple packets, one for each client
-	// parse each packet on its own and append to allClientInfo
-	clientInfoRaw := ClientInfoRaw{}
+	cns = []int{}
 	for response.HasRemaining() {
-		var partialResponse *cubecode.Packet
-		partialResponse, err = response.SubPacket(MaxPacketLength)
+		cn, err := response.ReadInt()
 		if err != nil {
-			return
+			return nil, fmt.Errorf("extinfo: reading CN from client info packet: %w", err)
 		}
 
-		clientInfoRaw, err = parseClientInfoResponse(partialResponse)
-		if err != nil {
-			return
-		}
-
-		allClientInfo[clientInfoRaw.ClientNum] = ClientInfo{
-			ClientInfoRaw: clientInfoRaw,
-			Weapon:        getWeaponName(clientInfoRaw.Weapon),
-			Privilege:     getPrivilegeName(clientInfoRaw.Privilege),
-			State:         getStateName(clientInfoRaw.State),
-		}
+		cns = append(cns, cn)
 	}
 
-	return
+	return cns, nil
 }
 
 // own function, because it is used in GetClientInfo() & GetAllClientInfo()
-func parseClientInfoResponse(response *cubecode.Packet) (clientInfoRaw ClientInfoRaw, err error) {
-	// omit 7 first bytes: EXTENDED_INFO, EXTENDED_INFO_CLIENT_INFO, CN, EXTENDED_INFO_ACK, EXTENDED_INFO_VERSION, EXTENDED_INFO_NO_ERROR, EXTENDED_INFO_CLIENT_INFO_RESPONSE_INFO
-	for i := 0; i < 7; i++ {
-		_, err = response.ReadInt()
-		if err != nil {
-			err = errors.New("extinfo: error skipping response header: " + err.Error())
-			return
-		}
+func parseClientStats(response *cubecode.Packet) (clientInfoRaw *ClientInfoRaw, err error) {
+	// expect ClientInfoResponseTypeStats
+	packetType, err := response.ReadInt()
+	if err != nil {
+		return nil, errors.New("extinfo: error reading client info packet type: " + err.Error())
 	}
+	if packetType != ClientInfoResponseTypeStats {
+		return nil, fmt.Errorf("extinfo: error parsing client info packet: expected type %d, but got %d", ClientInfoResponseTypeStats, packetType)
+	}
+
+	clientInfoRaw = &ClientInfoRaw{}
 
 	clientInfoRaw.ClientNum, err = response.ReadInt()
 	if err != nil {
