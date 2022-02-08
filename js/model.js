@@ -8,7 +8,7 @@ export const scoreboard = {
         numberOfClients: 0,
         maxNumberOfClients: 0
     },
-    teams: {},
+    teams: new Map(),
     teamless: [],
     spectators: [],
 }
@@ -23,7 +23,7 @@ export function resetScoreboard (){
         numberOfClients: 0,
         maxNumberOfClients: 0
     }
-    scoreboard.teams = {}
+    scoreboard.teams.clear()
     scoreboard.teamless = []
     scoreboard.spectators = []
 }

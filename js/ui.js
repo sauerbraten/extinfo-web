@@ -1,177 +1,132 @@
-import { scoreboard, serverlist } from './model.js'
+import {html, nothing} from 'https://unpkg.com/lit-html?module'
+import {map} from 'https://unpkg.com/lit-html/directives/map?module'
+import {styleMap} from 'https://unpkg.com/lit-html/directives/style-map?module'
+import {ifDefined} from 'https://unpkg.com/lit-html/directives/if-defined?module'
 
-Vue.component('time-remaining', {
-    props: {
-        secsLeft: {
-            type: Number,
-            default: 0
-        },
-        paused: {
-            type: Boolean,
-            default: false
-        }
-    },
-    data() {
-        return {
-            liveSecsLeft: 0,
-            secsLeftUpdaters: []
-        }
-    },
-    watch: {
-        secsLeft: {
-            handler: function (newSecsLeft) {
-                for (const updater of this.secsLeftUpdaters) {
-                    window.clearTimeout(updater)
-                }
-                this.secsLeftUpdaters = []
-                this.liveSecsLeft = newSecsLeft
-                if (!this.paused) {
-                    for (let i = 1; i < 5 && i <= newSecsLeft; i++) {
-                        this.secsLeftUpdaters.push(window.setTimeout(() => this.liveSecsLeft--, i * 1000))
-                    }
-                }
-            },
-            immediate: true
-        }
-    },
-    computed: {
-        timeLeft() {
-            const pad = i => (i < 10 ? '0' : '') + i
-            const formatTimeLeft = s => `${pad(Math.floor(s / 60))}:${pad(s % 60)}`
-            return formatTimeLeft(this.liveSecsLeft)
-        }
-    },
-    template: `<span>{{timeLeft}}</span>`
-})
-
-Vue.component('player-name', {
-    props: {
-        player: {
-            type: Object,
-            default: {
-                name: '',
-                clientNum: -1,
-                privilege: 'none'
-            }
-        }
-    },
-    template: `
-            <span>
-                <span v-if='player.privilege != "none"' :class='"priv-"+player.privilege' :title='player.privilege'>{{player.name}}</span>
-                <span v-else>{{player.name}}</span>
-                <span class='cn'>({{player.clientNum}})</span>
-            </span>`,
-})
-
-Vue.component('player-list', {
-    props: {
-        title: {
-            type: String,
-            default: "players"
-        },
-        players: {
-            type: Array,
-            default: []
-        }
-    },
-    computed: {
-        sortedPlayers() {
-            return this.players.sort((a, b) => {
-                // sorts by frags (descending), then deaths (ascending), then accuracy (descending)
-                if (a.frags !== b.frags) {
-                    return b.frags - a.frags
-                } else {
-                    if (a.deaths !== b.deaths) {
-                        return a.deaths - b.deaths
-                    } else {
-                        return b.accuracy - a.accuracy
-                    }
-                }
-            })
-        }
-    },
-    template: `
-            <div class='team flex flex-col'>
-                <h2>{{title}}</h2>
-                <div class='team-table scrollable-x'>
-                    <table>
-                        <thead>
-                            <tr>
-                                <td>frags</td>
-                                <td>deaths</td>
-                                <td>accuracy</td>
-                                <td>name</td>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for='player in sortedPlayers'>
-                                <td class='count'>{{player.frags}}</td>
-                                <td class='count'>{{player.deaths}}</td>
-                                <td class='count'>{{player.accuracy}}%</td>
-                                <td><player-name :player='player'></player-name></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>`,
-})
-
-Vue.component('server-list', {
-    props: {
-        servers: {
-            type: Array,
-            default: []
-        }
-    },
-    template: `
-            <div class='scrollable-x'>
-                <table v-if='servers.length'>
-                    <thead>
-                        <tr>
-                            <td>players</td>
-                            <td>description</td>
-                            <td>mode</td>
-                            <td>map</td>
-                            <td>time left</td>
-                            <td>master mode</td>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for='server in servers'>
-                            <td class='count'>{{server.numberOfClients}}</td>
-                            <td>
-                                <a :href='"#"+server.address' class='subtle' :title='server.mod ? server.mod : ""'>{{server.description}}</a>
-                            </td>
-                            <td>{{server.gameMode}}</td>
-                            <td>{{server.map}}</td>
-                            <td class='centered'><time-remaining :secs-left='server.secsLeft' :paused='server.paused'></time-remaining></td>
-                            <td>{{server.masterMode}}</td>
-                        </tr>
-                    </tbody>
-                </table>
-                <p v-else class='centered'>
-                    loading...
-                </p>
-            </div>`
-})
-
-function ui() {
-    const bgImgOverlayCSS = 'linear-gradient(rgba(0, 0, 0, .3), rgba(0, 0, 0, .3))'
-    const bgImgMapshotCSS = map => `url('//sauertracker.net/images/mapshots/${map}.jpg') no-repeat center center / cover`
-    const bgImgFallbackCSS = bgImgMapshotCSS('firstevermap')
-
-    new Vue({
-        el: '#scoreboard',
-        data: scoreboard,
-        computed: {
-            backgroundImageCSS: () => `${bgImgOverlayCSS}, ${bgImgMapshotCSS(scoreboard.info.map)}, ${bgImgFallbackCSS}`
-        }
-    })
-
-    new Vue({
-        el: '#serverlist',
-        data: serverlist
-    })
+const timeRemaining = (secsLeft) => {
+    const pad = i => (i < 10 ? '0' : '') + i
+    const formatTimeLeft = s => `${pad(Math.floor(s / 60))}:${pad(s % 60)}`
+    return html`<span>${formatTimeLeft(secsLeft)}</span>`
 }
 
-ui()
+const playerName = (name, cn, priv) => html`
+    <span>
+        ${priv=='none'
+          ? html`<span>${name}</span>`
+          : html`<span class='${'priv-'+priv}' title='${priv == 'none' ? nothing : priv}'>${name}</span>`
+        }
+        <span class='cn'>(${cn})</span>
+    </span>`
+
+const playerList = (title, players) => {
+    const sorted = players.sort((a, b) => {
+            // sorts by frags (descending), then deaths (ascending), then accuracy (descending)
+            if (a.frags !== b.frags) {
+                return b.frags - a.frags
+            } else {
+                if (a.deaths !== b.deaths) {
+                    return a.deaths - b.deaths
+                } else {
+                    return b.accuracy - a.accuracy
+                }
+            }
+        })
+
+    return html`
+    <div class='team flex flex-col'>
+        <h2>${title}</h2>
+        <div class='team-table scrollable-x'>
+            <table>
+                <thead>
+                    <tr>
+                        <td>frags</td>
+                        <td>deaths</td>
+                        <td>accuracy</td>
+                        <td>name</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${map(sorted, p => html`
+                    <tr>
+                        <td class='count'>${p.frags}</td>
+                        <td class='count'>${p.deaths}</td>
+                        <td class='count'>${p.accuracy}%</td>
+                        <td>${playerName(p.name, p.clientNum, p.privilege)}</td>
+                    </tr>`)}
+                </tbody>
+            </table>
+        </div>
+    </div>`
+}
+
+const scoreBoard = (info, teams, teamless, spectators) => {
+    const bgImgOverlayCSS = 'linear-gradient(rgba(0, 0, 0, .3), rgba(0, 0, 0, .3))'
+    const bgImgMapshotCSS = m => `url('//sauertracker.net/images/mapshots/${m}.jpg') no-repeat center center / cover`
+    const bgImgFallbackCSS = bgImgMapshotCSS('firstevermap')
+    const backgroundImageCSS = (m) => `${bgImgOverlayCSS}, ${bgImgMapshotCSS(m)}, ${bgImgFallbackCSS}`
+    
+    return html`
+    <main id='scoreboard' style='${styleMap({ background: backgroundImageCSS(info.map) })}'>
+		<header>
+			<h1 class='scrollable-x'>${info.description}</h1>
+			<h3 class='scrollable-x'>
+				<strong>${info.gameMode}</strong> &nbsp; on &nbsp; <strong>${info.map}</strong>
+				<br>
+				${timeRemaining(info.secsLeft)}${info.paused ? ' &nbsp; | &nbsp; paused' : nothing } &nbsp; | &nbsp; ${info.masterMode} &nbsp; | &nbsp; ${info.numberOfClients}/${info.maxNumberOfClients}
+			</h3>
+		</header>
+
+		<section class='flex flex-row'>
+            ${map(teams, ([_, t]) => playerList(`${t.name}: ${t.score}`, t.players))}
+			${teamless.length ? playerList('players', teamless) : nothing}
+		</section>
+
+        ${spectators.length==0 ? nothing : html`
+        <section>
+			<h2>spectators</h2>
+			<div class='flex flex-row centered'>
+				${map(spectators, s => playerName(s.name, s.clientNum, s.privilege))}
+			</div>
+		</section>`}
+	</main>`
+}
+
+
+const serverList = (servers) => {
+    return servers.length
+      ? html`<div class='scrollable-x'>
+            <table>
+                <thead>
+                    <tr>
+                        <td>players</td>
+                        <td>description</td>
+                        <td>mode</td>
+                        <td>map</td>
+                        <td>time left</td>
+                        <td>master mode</td>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${map(servers, s => html`
+                    <tr>
+                        <td class='count'>${s.numberOfClients}</td>
+                        <td>
+                            <a href='${'#'+s.address}' class='subtle' title='${ifDefined(s.mod)}'>${s.description}</a>
+                        </td>
+                        <td>${s.gameMode}</td>
+                        <td>${s.map}</td>
+                        <td class='centered'>${timeRemaining(s.secsLeft)}</td>
+                        <td>${s.masterMode}</td>
+                    </tr>`)}
+                </tbody>
+            </table>
+        </div>`
+      : html`<div><p class='centered'>loading...</p></div>`
+}
+
+export const ui = ({info, teams, teamless, spectators}, serverlist) => html`
+    ${scoreBoard(info, teams, teamless, spectators)}
+	<aside id='serverlist' class='flex flex-col'>
+		<h2>other servers</h2>
+		${serverList(serverlist.servers)}
+	</aside>`

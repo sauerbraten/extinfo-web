@@ -1,10 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap');
+
 * {
 	box-sizing: border-box;
 }
 
+:root {
+	--main-bg-color: white;
+	--main-fg-color: black;
+	--border-color: black;
+	
+	--text-shadow-blur-radius: .5em;
+}
+  
+@media (prefers-color-scheme: dark) {
+	:root {
+	  --main-bg-color: black;
+	  --main-fg-color: white;
+	  --border-color: #777;
+	}
+}
+
+html {
+	background: var(--main-bg-color);
+	color: var(--main-fg-color);
+}
+
 body {
-	font-family: 'Roboto Mono', monospace;
-	font-size: .9em;
+	/* font-family: 'Roboto Mono', monospace; */
+	font-family: 'Inter', sans-serif;
+	font-size: 12pt;
+	font-weight: 500;
 
 	max-width: 72em;
 	min-height: 100vh;
@@ -35,9 +60,8 @@ main, aside, footer {
 	padding-bottom: 1em;
 	background: linear-gradient(rgba(0, 0, 0, .3), rgba(0, 0, 0, .3)), url('//sauertracker.net/images/mapshots/firstevermap.jpg') no-repeat center center / cover;
 	color: white;
-	--text-shadow-blur-radius: .5em;
 	text-shadow: 0 0 var(--text-shadow-blur-radius) black;
-	box-shadow: 0 0 2px 0px black;
+	box-shadow: 0 0 2px 0px var(--border-color);
 }
 
 header, #serverlist, .flex-row > * {
@@ -125,6 +149,10 @@ a.subtle {
 
 .priv-master {
 	color: #40FF80;
+}
+
+.priv-auth {
+	color: #E838FF;
 }
 
 .priv-admin {

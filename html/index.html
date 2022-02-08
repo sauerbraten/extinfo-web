@@ -9,44 +9,17 @@
 	<title>extinfo: sauerbraten live monitor</title>
 	<meta name='description' content='Sauerbraten live monitor that allows you to see server information and player statistics in real-time.'>
 
-	<link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Roboto+Mono:400,700&subset=cyrillic,greek'>
+	<!-- <link rel='stylesheet' href='https://fonts.googleapis.com/css?family=Roboto+Mono:400,700&subset=cyrillic,greek'> -->
 	<link rel='stylesheet' href='/css/style.css'>
 
 	<script src='https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.min.js'></script>
 </head>
 
 <body spellcheck='false' class='flex flex-col'>
-	<main id='scoreboard' :style='{ background: backgroundImageCSS }'>
-		<header>
-			<h1 class='scrollable-x'>
-				{{info.description}}
-			</h1>
-			<h3 class='scrollable-x'>
-				<strong>{{info.gameMode}}</strong> on <strong>{{info.map}}</strong>
-				<br>
-				<time-remaining :secs-left='info.secsLeft' :paused='info.paused'></time-remaining>{{info.paused ? ' | paused' : '' }} | {{info.masterMode}} | {{info.numberOfClients}}/{{info.maxNumberOfClients}}
-			</h3>
-		</header>
 
-		<section class='flex flex-row'>
-			<player-list v-for='team in teams' :key='team.name' :title='`${team.name}: ${team.score}`' :players='team.players'></player-list>
-			<player-list v-if='teamless.length' :players='teamless'></player-list>
-		</section>
+	<!-- lit-html app -->
 
-		<section v-show='spectators.length'>
-			<h2>spectators</h2>
-			<div class='flex flex-row centered'>
-				<player-name v-for='spectator in spectators' :key='spectator.clientNum' :player='spectator'></player-name>
-			</div>
-		</section>
-	</main>
-
-	<aside id='serverlist' class='flex flex-col'>
-		<h2>other servers</h2>
-		<server-list :servers='servers'></server-list>
-	</aside>
-
-	<footer class='flex flex-row centered'>
+	<footer id='footer' class='flex flex-row centered'>
 		<small>
 			sauerbraten live monitor by pix.
 		</small>
