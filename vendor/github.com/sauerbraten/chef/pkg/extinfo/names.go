@@ -67,7 +67,7 @@ func (gm GameMode) IsTeamMode() bool {
 		GameModeTactics:
 		return false
 	default:
-		return false
+		return true
 	}
 }
 
