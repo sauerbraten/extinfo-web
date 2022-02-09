@@ -2,6 +2,7 @@ package extinfo
 
 import (
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -26,3 +27,7 @@ func NewServer(p *Pinger, host string, port int, timeOut time.Duration) (*Server
 		timeOut: timeOut,
 	}, nil
 }
+
+func (s *Server) Host() string { return s.host }
+func (s *Server) Port() int    { return s.port }
+func (s *Server) Addr() string { return fmt.Sprintf("%s:%d", s.host, s.port) }

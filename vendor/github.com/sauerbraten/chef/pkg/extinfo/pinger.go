@@ -2,7 +2,6 @@ package extinfo
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"sync"
 	"time"
@@ -16,6 +15,7 @@ type packet struct {
 type request struct {
 	packet
 	resp     chan []byte
+	done     chan struct{} // closed by send() caller after it got all expected packets
 	deadline time.Time
 }
 
@@ -49,36 +49,36 @@ func NewPinger(laddr string) (*Pinger, error) {
 		cachingUDPResolver: newCacheingUDPResolver(1 * time.Hour),
 	}
 
+	go p.handleIncoming()
 	go p.run()
 
 	return p, nil
 }
 
-func (p *Pinger) run() {
-	// handle incoming packets
-	go func() {
-		inbuf := [1024]byte{}
-		for {
-			n, raddr, err := p.c.ReadFromUDP(inbuf[:])
-			if err != nil {
-				panic(err)
-			}
-			resp := make([]byte, n)
-			copy(resp, inbuf[:])
-			p.responses <- packet{raddr, resp}
+func (p *Pinger) handleIncoming() {
+	inbuf := [1024]byte{}
+	for {
+		n, raddr, err := p.c.ReadFromUDP(inbuf[:])
+		if err != nil {
+			panic(err)
 		}
-	}()
+		resp := make([]byte, n)
+		copy(resp, inbuf[:])
+		p.responses <- packet{raddr, resp}
+	}
+}
 
-	lastCleanup := time.Now()
+func (p *Pinger) run() {
+	cleanup := time.NewTicker(500 * time.Millisecond)
+
 	for {
 		select {
-
 		case req := <-p.requests: // send() was called
 
-			p.c.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			p.c.SetWriteDeadline(req.deadline)
 			_, err := p.c.WriteToUDP(req.buf, req.addr)
 			if err != nil {
-				log.Printf("sending to %s: %v\n", req.addr, err)
+				// log.Printf("sending to %s failed: %v\n", req.addr, err)
 				close(req.resp)
 				break
 			}
@@ -89,14 +89,22 @@ func (p *Pinger) run() {
 			addr := resp.addr.String()
 			req, ok := p.pending[addr]
 			if !ok || time.Now().After(req.deadline) {
+				// all cleanup happens below
 				break
 			}
-			req.resp <- resp.buf
-			// keep channel open since response can span multiple packeages
-		}
 
-		if time.Now().After(lastCleanup.Add(2 * time.Second)) {
-			var tbd []string
+			select {
+			case <-time.After(time.Until(req.deadline)):
+				// log.Printf("discarding response packet %v from %s for slow receiver\n", resp.buf, addr)
+			case <-req.done:
+				// log.Printf("discarding extraneous response packet %v from %s (in response to %v)\n", resp.buf, addr, req.buf)
+			case req.resp <- resp.buf:
+				// keep channel open since response can span multiple packages
+			}
+
+		case <-cleanup.C:
+
+			var tbd []string // to be deleted
 			for addr, req := range p.pending {
 				if time.Now().After(req.deadline) {
 					tbd = append(tbd, addr)
@@ -106,24 +114,40 @@ func (p *Pinger) run() {
 				close(p.pending[addr].resp)
 				delete(p.pending, addr)
 			}
-			lastCleanup = time.Now()
 		}
 	}
 }
 
-func (p *Pinger) send(host string, port int, buf []byte, timeout time.Duration) (<-chan []byte, error) {
+func (p *Pinger) send(host string, port int, buf []byte, timeout time.Duration) (<-chan []byte, func(), error) {
 	addr, err := p.resolve(host, port)
 	if err != nil {
-		return nil, fmt.Errorf("resolving %s:%d: %w", host, port+1, err)
+		return nil, func() {}, fmt.Errorf("resolving %s:%d: %w", host, port+1, err)
 	}
 
-	c := make(chan []byte, 100)
-	p.requests <- request{
+	req := request{
 		packet:   packet{addr, buf},
-		resp:     c,
+		resp:     make(chan []byte, 10),
+		done:     make(chan struct{}),
 		deadline: time.Now().Add(timeout),
 	}
-	return c, nil
+
+	p.requests <- req
+
+	return req.resp, func() { close(req.done) }, nil
+}
+
+func (p *Pinger) expectSinglePacket(host string, port int, req []byte, timeout time.Duration) ([]byte, error) {
+	c, done, err := p.send(host, port, req, timeout)
+	if err != nil {
+		return nil, err
+	}
+	defer done()
+
+	resp, ok := <-c
+	if !ok {
+		return nil, fmt.Errorf("receiving response from %s:%d timed out", host, port)
+	}
+	return resp, nil
 }
 
 type cachingUDPResolver struct {

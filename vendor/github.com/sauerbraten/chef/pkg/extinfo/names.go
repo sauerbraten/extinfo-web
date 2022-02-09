@@ -1,126 +1,156 @@
 package extinfo
 
-import (
-	"strconv"
+type MasterMode int
+
+const mmOffset = 1
+
+const (
+	MasterModeAuth MasterMode = iota - mmOffset
+	MasterModeOpen
+	MasterModeVeto
+	MasterModeLocked
+	MasterModePrivate
+	MasterModePassword
 )
 
-// A slice containing the possible master modes
-// In the sauerbraten protocol, 'auth' is -1, 'open' is 0, and so forth. Therefore getModeName() returns MasterModeNames[modeInt+1]. MasterModeNames should not be used directly
-var masterModeNames = []string{"auth", "open", "veto", "locked", "private", "password"}
-
-// wrapper function around masterModeNames
-// returns the human readable name of the master mode as a string
-func getMasterModeName(masterMode int) string {
-	if masterMode < -1 || masterMode >= len(masterModeNames)-1 {
+func (mm MasterMode) String() string {
+	names := [...]string{"auth", "open", "veto", "locked", "private", "password"}
+	if mm < MasterModeAuth || MasterModePassword < mm {
 		return "unknown"
 	}
-
-	return masterModeNames[masterMode+1]
+	return names[mm+mmOffset]
 }
 
-// A slice containing the possible game modes
-// The index of a mode is equal to the int received in a response for that game mode, thus this slice maps the game mode ints to game mode strings
-var gameModeNames = []string{"ffa", "coop edit", "teamplay", "instagib", "instagib team", "efficiency", "efficiency team", "tactics", "tactics team", "capture", "regen capture", "ctf", "insta ctf", "protect", "insta protect", "hold", "insta hold", "efficiency ctf", "efficiency protect", "efficiency hold", "collect", "insta collect", "efficiency collect"}
+type GameMode int
 
-// wrapper function around gameModeNames
-// returns the human readable name of the game mode as a string
-func getGameModeName(gameMode int) string {
-	if gameMode < 0 || gameMode >= len(gameModeNames) {
+const (
+	GameModeFFA GameMode = iota
+	GameModeCoopEdit
+	GameModeTeamplay
+	GameModeInsta
+	GameModeInstaTeam
+	GameModeEffic
+	GameModeEfficTeam
+	GameModeTactics
+	GameModeTacticsTeam
+	GameModeCapture
+	GameModeRegenCapture
+	GameModeCTF
+	GameModeInstaCTF
+	GameModeProtect
+	GameModeInstaProtect
+	GameModeHold
+	GameModeInstaHold
+	GameModeEfficCTF
+	GameModeEfficProtect
+	GameModeEfficHold
+	GameModeCollect
+	GameModeInstaCollect
+	GameModeEfficCollect
+)
+
+func (gm GameMode) String() string {
+	names := [...]string{"ffa", "coop edit", "teamplay", "insta", "insta team", "effic", "effic team", "tactics", "tactics team", "capture", "regen capture", "ctf", "insta ctf", "protect", "insta protect", "hold", "insta hold", "effic ctf", "effic protect", "effic hold", "collect", "insta collect", "effic collect"}
+	if gm < GameModeFFA || GameModeEfficCollect < gm {
 		return "unknown"
 	}
-
-	return gameModeNames[gameMode]
+	return names[gm]
 }
 
-// IsTeamMode returns true when mode is a team mode, false otherwise.
-func IsTeamMode(mode string) bool {
-	switch mode {
-	case "teamplay",
-		"instagib team",
-		"efficiency team",
-		"tactics team",
-		"capture",
-		"regen capture",
-		"ctf",
-		"insta ctf",
-		"protect",
-		"insta protect",
-		"hold",
-		"insta hold",
-		"efficiency ctf",
-		"efficiency protect",
-		"efficiency hold",
-		"collect",
-		"insta collect",
-		"efficiency collect":
-		return true
+// IsTeamMode returns true when gm is a team mode, false otherwise.
+func (gm GameMode) IsTeamMode() bool {
+	switch gm {
+	case GameModeFFA,
+		GameModeCoopEdit,
+		GameModeInsta,
+		GameModeEffic,
+		GameModeTactics:
+		return false
 	default:
 		return false
 	}
 }
 
-// A slice containing the weapon names
-// The index of a weapon is equal to the int received in a response for client info, thus this slice maps the weapon ints to weapon strings
-var weaponNames = []string{"chain saw", "shotgun", "chain gun", "rocket launcher", "rifle", "grenade launcher", "pistol", "fire ball", "ice ball", "slime ball", "bite", "barrel"}
+type Weapon int
 
-// wrapper function around weaponNames
-// returns the human readable name of the weapon as a string
-func getWeaponName(weapon int) string {
-	if weapon < 0 || weapon >= len(weaponNames) {
+const (
+	WeaponChainSaw Weapon = iota
+	WeaponShotgun
+	WeaponChainGun
+	WeaponRocketLauncher
+	WeaponRifle
+	WeaponGrenadeLauncher
+	WeaponPistol
+	WeaponFireBall
+	WeaponIceBall
+	WeaponSlimeBall
+	WeaponBite
+	WeaponBarrel
+)
+
+func (w Weapon) String() string {
+	names := [...]string{"chain saw", "shotgun", "chain gun", "rocket launcher", "rifle", "grenade launcher", "pistol", "fire ball", "ice ball", "slime ball", "bite", "barrel"}
+	if w < WeaponChainSaw || WeaponBarrel < w {
 		return "unknown"
 	}
-
-	return weaponNames[weapon]
+	return names[w]
 }
 
-// A slice containing the privilege names
-// Maps the privilege ints to privilege strings
-var privilegeNames = []string{"none", "master", "auth", "admin"}
+type Privilege int
 
-// wrapper function around privilegeNames
-// returns the human readable name of the privilege as a string
-func getPrivilegeName(privilege int) string {
-	if privilege < 0 || privilege >= len(privilegeNames) {
+const (
+	PrivilegeNone Privilege = iota
+	PrivilegeMaster
+	PrivilegeAuth
+	PrivilegeAdmin
+)
+
+func (p Privilege) String() string {
+	names := [...]string{"none", "master", "auth", "admin"}
+	if p < PrivilegeNone || PrivilegeAdmin < p {
 		return "unknown"
 	}
-
-	return privilegeNames[privilege]
+	return names[p]
 }
 
-// A slice containing the state names
-// Maps the state ints to state strings
-var stateNames = []string{"alive", "dead", "spawning", "lagged", "editing", "spectator"}
+type State int
 
-// wrapper function around stateNames
-// returns the human readable name of the state as a string
-func getStateName(state int) string {
-	if state < 0 || state >= len(stateNames) {
+const (
+	StateAlive State = iota
+	StateDead
+	StateSpawning
+	StateLagged
+	StateEditing
+	StateSpectator
+)
+
+func (s State) String() string {
+	names := [...]string{"alive", "dead", "spawning", "lagged", "editing", "spectator"}
+	if s < StateAlive || StateSpectator < s {
 		return "unknown"
 	}
-
-	return stateNames[state]
+	return names[s]
 }
 
-// getServerModName returns the human readable name of the server mod as a string
-func getServerModName(mod int) string {
-	switch mod {
-	case -2:
-		return "hopmod"
-	case -3:
-		return "oomod"
-	case -4:
-		return "spaghettimod"
-	case -5:
-		return "suckerserv"
-	case -6:
-		return "remod"
-	case -7:
-		return "noobmod"
-	case -8:
-		return "zeromod"
-	case -9:
-		return "waiter"
-	default:
-		return "unknown (" + strconv.Itoa(mod) + ")"
+type ServerMod int
+
+const smOffset = 9
+
+const (
+	ServerModP1xbraten ServerMod = iota - smOffset
+	ServerModZero
+	ServerModNoob
+	ServerModRemod
+	ServerModSuckerServ
+	ServerModSpaghetti
+	ServerModWahnfred
+	ServerModHopmod
+)
+
+func (sm ServerMod) String() string {
+	names := [...]string{"p1xbraten", "zeromod", "nooblounge", "remod", "suckerserv", "spaghetti", "wahnfred", "hopmod"}
+	if sm < ServerModP1xbraten || ServerModHopmod < sm {
+		return "unknown"
 	}
+	return names[sm+smOffset]
 }

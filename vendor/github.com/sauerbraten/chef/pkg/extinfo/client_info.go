@@ -8,43 +8,41 @@ import (
 	"github.com/sauerbraten/cubecode"
 )
 
-// ClientInfoRaw contains the raw information sent back from the server, i.e. state and privilege are ints.
-type ClientInfoRaw struct {
-	ClientNum int    `json:"clientNum"` // client number or cn
-	Ping      int    `json:"ping"`      // client's ping to server
-	Name      string `json:"name"`      //
-	Team      string `json:"team"`      // name of the team the client is on, e.g. "good"
-	Frags     int    `json:"frags"`     // kills
-	Flags     int    `json:"flags"`     // number of flags the player scored
-	Deaths    int    `json:"deaths"`    //
-	Teamkills int    `json:"teamkills"` //
-	Accuracy  int    `json:"accuracy"`  // damage the client could have dealt * 100 / damage actually dealt by the client
-	Health    int    `json:"health"`    // remaining HP (health points)
-	Armour    int    `json:"armour"`    // remaining armour
-	Weapon    int    `json:"weapon"`    // weapon the client currently has selected
-	Privilege int    `json:"privilege"` // 0 ("none"), 1 ("master"), 2 ("auth") or 3 ("admin")
-	State     int    `json:"state"`     // client state, e.g. 1 ("alive") or 5 ("spectator"), see names.go for int -> string mapping
-	IP        net.IP `json:"ip"`        // client IP (only the first 3 bytes)
-}
-
-// ClientInfo contains the parsed information sent back from the server, i.e. weapon, state and privilege are translated into human readable strings.
+// ClientInfo contains the raw information sent back from the server, i.e. state and privilege are ints.
 type ClientInfo struct {
-	*ClientInfoRaw
-	Weapon    string `json:"weapon"`    // weapon the client currently has selected
-	Privilege string `json:"privilege"` // "none", "master" or "admin"
-	State     string `json:"state"`     // client state, e.g. "dead" or "spectator"
+	ClientNum int       `json:"cn"`        //
+	Ping      int       `json:"ping"`      // client's ping to server
+	Name      string    `json:"name"`      //
+	Team      string    `json:"team"`      // name of the team the client is on, e.g. "good"
+	Frags     int       `json:"frags"`     // aka kills
+	Flags     int       `json:"flags"`     //
+	Deaths    int       `json:"deaths"`    //
+	Teamkills int       `json:"teamkills"` //
+	Accuracy  int       `json:"accuracy"`  // damage the client could have dealt * 100 / damage actually dealt by the client
+	Health    int       `json:"health"`    //
+	Armour    int       `json:"armour"`    //
+	Weapon    Weapon    `json:"weapon"`    //
+	Privilege Privilege `json:"privilege"` // 0 ("none"), 1 ("master"), 2 ("auth") or 3 ("admin")
+	State     State     `json:"state"`     // client state, e.g. 1 ("alive") or 5 ("spectator"), see names.go for int -> string mapping
+	IP        net.IP    `json:"ip"`        // only the first 3 bytes
 }
 
-// GetClientInfoRaw returns the raw information about the client with the given CN.
-func (s *Server) GetClientInfoRaw(cn int) (map[int]*ClientInfoRaw, error) {
+// GetClientInfo returns the raw information about the client with the given CN.
+func (s *Server) GetClientInfo(cn int) (map[int]*ClientInfo, error) {
 	request := []byte{InfoTypeExtended, ExtInfoTypeClientInfo, byte(cn)}
 
-	c, err := s.pinger.send(s.host, s.port, request, s.timeOut)
+	c, done, err := s.pinger.send(s.host, s.port, request, s.timeOut)
 	if err != nil {
 		return nil, err
 	}
+	defer done()
 
-	clientNumList, err := parseResponse(request, <-c)
+	resp, ok := <-c
+	if !ok {
+		return nil, fmt.Errorf("receiving response from %s:%d timed out", s.host, s.port)
+	}
+
+	clientNumList, err := parseResponse(request, resp)
 	if err != nil {
 		return nil, err
 	}
@@ -54,9 +52,14 @@ func (s *Server) GetClientInfoRaw(cn int) (map[int]*ClientInfoRaw, error) {
 		return nil, err
 	}
 
-	stats := map[int]*ClientInfoRaw{}
+	stats := map[int]*ClientInfo{}
 	for range cns {
-		clientStats, err := parseResponse(request, <-c)
+		resp, ok = <-c
+		if !ok {
+			return nil, fmt.Errorf("receiving response from %s:%d timed out", s.host, s.port)
+		}
+
+		clientStats, err := parseResponse(request, resp)
 		if err != nil {
 			return nil, err
 		}
@@ -67,26 +70,6 @@ func (s *Server) GetClientInfoRaw(cn int) (map[int]*ClientInfoRaw, error) {
 		}
 
 		stats[info.ClientNum] = info
-	}
-
-	return stats, nil
-}
-
-// GetClientInfo returns the ClientInfo of all Players (including spectators) as a []ClientInfo
-func (s *Server) GetClientInfo(cn int) (map[int]*ClientInfo, error) {
-	rawStats, err := s.GetClientInfoRaw(cn)
-	if err != nil {
-		return nil, err
-	}
-
-	stats := map[int]*ClientInfo{}
-	for cn, info := range rawStats {
-		stats[cn] = &ClientInfo{
-			ClientInfoRaw: info,
-			Weapon:        getWeaponName(info.Weapon),
-			Privilege:     getPrivilegeName(info.Privilege),
-			State:         getStateName(info.State),
-		}
 	}
 
 	return stats, nil
@@ -116,126 +99,127 @@ func parseClientNums(response *cubecode.Packet) (cns []int, err error) {
 }
 
 // own function, because it is used in GetClientInfo() & GetAllClientInfo()
-func parseClientStats(response *cubecode.Packet) (clientInfoRaw *ClientInfoRaw, err error) {
+func parseClientStats(response *cubecode.Packet) (clientInfo *ClientInfo, err error) {
 	// expect ClientInfoResponseTypeStats
 	packetType, err := response.ReadInt()
 	if err != nil {
-		return nil, errors.New("extinfo: error reading client info packet type: " + err.Error())
+		return nil, errors.New("extinfo: reading client info packet type: " + err.Error())
 	}
 	if packetType != ClientInfoResponseTypeStats {
-		return nil, fmt.Errorf("extinfo: error parsing client info packet: expected type %d, but got %d", ClientInfoResponseTypeStats, packetType)
+		return nil, fmt.Errorf("extinfo: parsing client info packet: expected type %d, but got %d", ClientInfoResponseTypeStats, packetType)
 	}
 
-	clientInfoRaw = &ClientInfoRaw{}
+	clientInfo = &ClientInfo{}
 
-	clientInfoRaw.ClientNum, err = response.ReadInt()
+	clientInfo.ClientNum, err = response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading client number: " + err.Error())
+		err = errors.New("extinfo: reading client number: " + err.Error())
 		return
 	}
 
-	clientInfoRaw.Ping, err = response.ReadInt()
+	clientInfo.Ping, err = response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading ping: " + err.Error())
+		err = errors.New("extinfo: reading ping: " + err.Error())
 		return
 	}
 
-	clientInfoRaw.Name, err = response.ReadString()
+	clientInfo.Name, err = response.ReadString()
 	if err != nil {
-		err = errors.New("extinfo: error reading client name: " + err.Error())
+		err = errors.New("extinfo: reading client name: " + err.Error())
 		return
 	}
 
-	clientInfoRaw.Team, err = response.ReadString()
+	clientInfo.Team, err = response.ReadString()
 	if err != nil {
-		err = errors.New("extinfo: error reading team: " + err.Error())
+		err = errors.New("extinfo: reading team: " + err.Error())
 		return
 	}
 
-	clientInfoRaw.Frags, err = response.ReadInt()
+	clientInfo.Frags, err = response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading frags: " + err.Error())
+		err = errors.New("extinfo: reading frags: " + err.Error())
 		return
 	}
 
-	clientInfoRaw.Flags, err = response.ReadInt()
+	clientInfo.Flags, err = response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading flags: " + err.Error())
+		err = errors.New("extinfo: reading flags: " + err.Error())
 		return
 	}
 
-	clientInfoRaw.Deaths, err = response.ReadInt()
+	clientInfo.Deaths, err = response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading deaths: " + err.Error())
+		err = errors.New("extinfo: reading deaths: " + err.Error())
 		return
 	}
 
-	clientInfoRaw.Teamkills, err = response.ReadInt()
+	clientInfo.Teamkills, err = response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading teamkills: " + err.Error())
+		err = errors.New("extinfo: reading teamkills: " + err.Error())
 		return
 	}
 
-	clientInfoRaw.Accuracy, err = response.ReadInt()
+	clientInfo.Accuracy, err = response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading accuracy: " + err.Error())
+		err = errors.New("extinfo: reading accuracy: " + err.Error())
 		return
 	}
 
-	clientInfoRaw.Health, err = response.ReadInt()
+	clientInfo.Health, err = response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading health: " + err.Error())
+		err = errors.New("extinfo: reading health: " + err.Error())
 		return
 	}
 
-	clientInfoRaw.Armour, err = response.ReadInt()
+	clientInfo.Armour, err = response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading armour: " + err.Error())
+		err = errors.New("extinfo: reading armour: " + err.Error())
 		return
 	}
 
-	clientInfoRaw.Weapon, err = response.ReadInt()
+	w, err := response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading weapon in use: " + err.Error())
+		err = errors.New("extinfo: reading weapon in use: " + err.Error())
 		return
 	}
+	clientInfo.Weapon = Weapon(w)
 
-	clientInfoRaw.Privilege, err = response.ReadInt()
+	p, err := response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading client privilege: " + err.Error())
+		err = errors.New("extinfo: reading client privilege: " + err.Error())
 		return
 	}
+	clientInfo.Privilege = Privilege(p)
 
-	clientInfoRaw.State, err = response.ReadInt()
+	s, err := response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading client state: " + err.Error())
+		err = errors.New("extinfo: reading client state: " + err.Error())
 		return
 	}
+	clientInfo.State = State(s)
 
-	// IP from next 4 bytes
-	var ipByte1, ipByte2, ipByte3, ipByte4 byte
+	// IP from next 3 bytes (sauer never sends 4th IP byte)
+	var ipByte1, ipByte2, ipByte3 byte
 
 	ipByte1, err = response.ReadByte()
 	if err != nil {
-		err = errors.New("extinfo: error reading first IP byte: " + err.Error())
+		err = errors.New("extinfo: reading first IP byte: " + err.Error())
 		return
 	}
 
 	ipByte2, err = response.ReadByte()
 	if err != nil {
-		err = errors.New("extinfo: error reading second IP byte: " + err.Error())
+		err = errors.New("extinfo: reading second IP byte: " + err.Error())
 		return
 	}
 
 	ipByte3, err = response.ReadByte()
 	if err != nil {
-		err = errors.New("extinfo: error reading third IP byte: " + err.Error())
+		err = errors.New("extinfo: reading third IP byte: " + err.Error())
 		return
 	}
 
-	ipByte4 = 0 // sauer never sends 4th IP byte for privacy reasons
-
-	clientInfoRaw.IP = net.IPv4(ipByte1, ipByte2, ipByte3, ipByte4)
+	clientInfo.IP = net.IPv4(ipByte1, ipByte2, ipByte3, 0)
 
 	return
 }

@@ -23,7 +23,7 @@ type serverListEntryUpdate struct {
 
 type serverState struct {
 	*extinfo.BasicInfo
-	Mod string `json:"mod"`
+	Mod extinfo.ServerMod `json:"mod"`
 }
 
 // ServerListPoller polls the master server and publishes updates about the server list by
@@ -66,13 +66,13 @@ func (slp *ServerListPoller) loop() {
 
 	err := slp.refreshServers()
 	if err != nil {
-		log.Println("error getting initial master server list:", err)
+		log.Println("getting initial master server list:", err)
 		return
 	}
 
 	err = slp.publishUpdate()
 	if err != nil {
-		log.Println("error publishing first update:", err)
+		log.Println("publishing first update:", err)
 		return
 	}
 
@@ -126,7 +126,7 @@ func (slp *ServerListPoller) storeServerUpdate(supd serverListEntryUpdate) {
 	serverUpdate := ServerStateUpdate{}
 	err := json.Unmarshal(supd.Update, &serverUpdate)
 	if err != nil {
-		log.Println("error unmarshaling server state update from "+supd.Address+":", err)
+		log.Println("unmarshaling server state update from "+supd.Address+":", err)
 		return
 	}
 
@@ -229,7 +229,7 @@ func hostAndPort(addr string) (string, int, error) {
 
 	port, err := strconv.Atoi(_port)
 	if err != nil {
-		return "", -1, fmt.Errorf("error converting port '%s' to int: %v", _port, err)
+		return "", -1, fmt.Errorf("converting port '%s' to int: %v", _port, err)
 	}
 
 	return host, port, nil

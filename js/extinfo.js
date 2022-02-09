@@ -2,6 +2,7 @@ import { scoreboard, serverlist, resetScoreboard } from './model.js'
 import { initSocket, initMasterSocket, free } from './sockets.js'
 import { render } from 'https://unpkg.com/lit-html?module'
 import { ui } from './ui.js'
+import { names } from './names.js'
 
 let sock = null
 
@@ -30,7 +31,7 @@ function init() {
 }
 
 function processMasterServerUpdate(update) {
-	update.sort((a, b) => b.numberOfClients - a.numberOfClients)
+	update.sort((a, b) => b.num_clients - a.num_clients)
 	serverlist.servers = update
 	updateUI()
 	if (!sock && update.length) {
@@ -39,8 +40,6 @@ function processMasterServerUpdate(update) {
 }
 
 function processServerUpdate(update) {
-	console.log('received current server update')
-
 	scoreboard.info = update.serverinfo
 	document.title = update.serverinfo.description + ' – extinfo'
 
@@ -56,7 +55,7 @@ function processServerUpdate(update) {
 
 	for (const cn in update.players) {
 		let player = update.players[cn]
-		if (player.state == 'spectator') {
+		if (names.state(player.state) == 'spectator') {
 			spectators.push(player)
 		} else if (teams.has(player.team)) {
 			teams.get(player.team).players.push(player)

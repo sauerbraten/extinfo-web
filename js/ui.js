@@ -2,6 +2,7 @@ import {html, nothing} from 'https://unpkg.com/lit-html?module'
 import {map} from 'https://unpkg.com/lit-html/directives/map?module'
 import {styleMap} from 'https://unpkg.com/lit-html/directives/style-map?module'
 import {ifDefined} from 'https://unpkg.com/lit-html/directives/if-defined?module'
+import {names} from './names.js'
 
 const timeRemaining = (secsLeft) => {
     const pad = i => (i < 10 ? '0' : '') + i
@@ -51,7 +52,7 @@ const playerList = (title, players) => {
                         <td class='count'>${p.frags}</td>
                         <td class='count'>${p.deaths}</td>
                         <td class='count'>${p.accuracy}%</td>
-                        <td>${playerName(p.name, p.clientNum, p.privilege)}</td>
+                        <td>${playerName(p.name, p.cn, names.priv(p.privilege))}</td>
                     </tr>`)}
                 </tbody>
             </table>
@@ -70,9 +71,9 @@ const scoreBoard = (info, teams, teamless, spectators) => {
 		<header>
 			<h1 class='scrollable-x'>${info.description}</h1>
 			<h3 class='scrollable-x'>
-				<strong>${info.gameMode}</strong> &nbsp; on &nbsp; <strong>${info.map}</strong>
+				<strong>${names.gm(info.game_mode)}</strong> &nbsp; on &nbsp; <strong>${info.map}</strong>
 				<br>
-				${timeRemaining(info.secsLeft)}${info.paused ? ' &nbsp; | &nbsp; paused' : nothing } &nbsp; | &nbsp; ${info.masterMode} &nbsp; | &nbsp; ${info.numberOfClients}/${info.maxNumberOfClients}
+				${timeRemaining(info.secs_left)}${info.paused ? ' &nbsp; | &nbsp; paused' : nothing } &nbsp; | &nbsp; ${names.mm(info.master_mode)} &nbsp; | &nbsp; ${info.num_clients}/${info.num_slots}
 			</h3>
 		</header>
 
@@ -85,7 +86,7 @@ const scoreBoard = (info, teams, teamless, spectators) => {
         <section>
 			<h2>spectators</h2>
 			<div class='flex flex-row centered'>
-				${map(spectators, s => playerName(s.name, s.clientNum, s.privilege))}
+				${map(spectators, s => playerName(s.name, s.cn, names.priv(s.privilege)))}
 			</div>
 		</section>`}
 	</main>`
@@ -109,14 +110,14 @@ const serverList = (servers) => {
                 <tbody>
                     ${map(servers, s => html`
                     <tr>
-                        <td class='count'>${s.numberOfClients}</td>
+                        <td class='count'>${s.num_clients}</td>
                         <td>
                             <a href='${'#'+s.address}' class='subtle' title='${ifDefined(s.mod)}'>${s.description}</a>
                         </td>
-                        <td>${s.gameMode}</td>
+                        <td>${names.gm(s.game_mode)}</td>
                         <td>${s.map}</td>
-                        <td class='centered'>${timeRemaining(s.secsLeft)}</td>
-                        <td>${s.masterMode}</td>
+                        <td class='centered'>${timeRemaining(s.secs_left)}</td>
+                        <td>${names.mm(s.master_mode)}</td>
                     </tr>`)}
                 </tbody>
             </table>

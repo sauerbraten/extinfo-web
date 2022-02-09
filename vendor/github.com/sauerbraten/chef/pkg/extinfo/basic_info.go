@@ -6,46 +6,39 @@ import (
 	"github.com/sauerbraten/cubecode"
 )
 
-// BasicInfoRaw contains the information sent back from the server in their raw form, i.e. no translation from ints to strings, even if possible.
-type BasicInfoRaw struct {
-	NumberOfClients    int    `json:"numberOfClients"`    // the number of clients currently connected to the server (players and spectators)
-	ProtocolVersion    int    `json:"protocolVersion"`    // version number of the protocol in use by the server
-	GameMode           int    `json:"gameMode"`           // current game mode
-	SecsLeft           int    `json:"secsLeft"`           // the time left until intermission in seconds
-	MaxNumberOfClients int    `json:"maxNumberOfClients"` // the maximum number of clients the server allows
-	MasterMode         int    `json:"masterMode"`         // the current master mode of the server
-	Paused             bool   `json:"paused"`             // wether the game is paused or not
-	GameSpeed          int    `json:"gameSpeed"`          // the gamespeed
-	Map                string `json:"map"`                // current map
-	Description        string `json:"description"`        // server description
-}
-
-// BasicInfo contains the parsed information sent back from the server, i.e. game mode and master mode are translated into human readable strings.
+// BasicInfo contains the information sent by the server in response to a basic info request.
 type BasicInfo struct {
-	*BasicInfoRaw
-	GameMode   string `json:"gameMode"`   // current game mode
-	MasterMode string `json:"masterMode"` // the current master mode of the server
+	NumberOfClients int        `json:"num_clients"`      // the number of clients currently connected to the server (players and spectators)
+	ProtocolVersion int        `json:"protocol_version"` // version number of the protocol in use by the server
+	GameMode        GameMode   `json:"game_mode"`        // current game mode
+	SecsLeft        int        `json:"secs_left"`        // the time left until intermission in seconds
+	NumberOfSlots   int        `json:"num_slots"`        // the maximum number of clients the server allows
+	MasterMode      MasterMode `json:"master_mode"`      // the current master mode of the server
+	Paused          bool       `json:"paused"`           // wether the game is paused or not
+	GameSpeed       int        `json:"game_speed"`       // the gamespeed
+	Map             string     `json:"map"`              // current map
+	Description     string     `json:"description"`      // server description
 }
 
-// GetBasicInfoRaw queries a Sauerbraten server at addr on port and returns the raw response or an error in case something went wrong. Raw response means that the int values sent as game mode and master mode are NOT translated into the human readable name.
-func (s *Server) GetBasicInfoRaw() (basicInfoRaw *BasicInfoRaw, err error) {
+// GetBasicInfo queries a Sauerbraten server at addr on port and returns the response or an error in case something went wrong.
+func (s *Server) GetBasicInfo() (basicInfo *BasicInfo, err error) {
 	request := []byte{InfoTypeBasic}
 
-	c, err := s.pinger.send(s.host, s.port, request, s.timeOut)
+	resp, err := s.pinger.expectSinglePacket(s.host, s.port, request, s.timeOut)
 	if err != nil {
 		return nil, err
 	}
 
-	response, err := parseResponse(request, <-c)
+	response, err := parseResponse(request, resp)
 	if err != nil {
 		return nil, err
 	}
 
-	basicInfoRaw = &BasicInfoRaw{}
+	basicInfo = &BasicInfo{}
 
-	basicInfoRaw.NumberOfClients, err = response.ReadInt()
+	basicInfo.NumberOfClients, err = response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading number of connected clients: " + err.Error())
+		err = errors.New("extinfo: reading number of connected clients: " + err.Error())
 		return
 	}
 
@@ -53,7 +46,7 @@ func (s *Server) GetBasicInfoRaw() (basicInfoRaw *BasicInfoRaw, err error) {
 	sevenAttributes := false
 	numberOfAttributes, err := response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading number of following values: " + err.Error())
+		err = errors.New("extinfo: reading number of following values: " + err.Error())
 		return
 	}
 
@@ -61,85 +54,72 @@ func (s *Server) GetBasicInfoRaw() (basicInfoRaw *BasicInfoRaw, err error) {
 		sevenAttributes = true
 	}
 
-	basicInfoRaw.ProtocolVersion, err = response.ReadInt()
+	basicInfo.ProtocolVersion, err = response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading protocol version: " + err.Error())
+		err = errors.New("extinfo: reading protocol version: " + err.Error())
 		return
 	}
 
-	basicInfoRaw.GameMode, err = response.ReadInt()
+	gm, err := response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading game mode: " + err.Error())
+		err = errors.New("extinfo: reading game mode: " + err.Error())
+		return
+	}
+	basicInfo.GameMode = GameMode(gm)
+
+	basicInfo.SecsLeft, err = response.ReadInt()
+	if err != nil {
+		err = errors.New("extinfo: reading time left: " + err.Error())
 		return
 	}
 
-	basicInfoRaw.SecsLeft, err = response.ReadInt()
+	basicInfo.NumberOfSlots, err = response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading time left: " + err.Error())
+		err = errors.New("extinfo: reading maximum number of clients: " + err.Error())
 		return
 	}
 
-	basicInfoRaw.MaxNumberOfClients, err = response.ReadInt()
+	mm, err := response.ReadInt()
 	if err != nil {
-		err = errors.New("extinfo: error reading maximum number of clients: " + err.Error())
+		err = errors.New("extinfo: reading master mode: " + err.Error())
 		return
 	}
-
-	basicInfoRaw.MasterMode, err = response.ReadInt()
-	if err != nil {
-		err = errors.New("extinfo: error reading master mode: " + err.Error())
-		return
-	}
+	basicInfo.MasterMode = MasterMode(mm)
 
 	if sevenAttributes {
 		var isPausedValue int
 		isPausedValue, err = response.ReadInt()
 		if err != nil {
-			err = errors.New("extinfo: error reading paused value: " + err.Error())
+			err = errors.New("extinfo: reading paused value: " + err.Error())
 			return
 		}
 
 		if isPausedValue == 1 {
-			basicInfoRaw.Paused = true
+			basicInfo.Paused = true
 		}
 
-		basicInfoRaw.GameSpeed, err = response.ReadInt()
+		basicInfo.GameSpeed, err = response.ReadInt()
 		if err != nil {
-			err = errors.New("extinfo: error reading game speed: " + err.Error())
+			err = errors.New("extinfo: reading game speed: " + err.Error())
 			return
 		}
 	} else {
-		basicInfoRaw.GameSpeed = 100
+		basicInfo.GameSpeed = 100
 	}
 
-	basicInfoRaw.Map, err = response.ReadString()
+	mapname, err := response.ReadString()
 	if err != nil {
-		err = errors.New("extinfo: error reading map name: " + err.Error())
+		err = errors.New("extinfo: reading map name: " + err.Error())
 		return
 	}
+	basicInfo.Map = cubecode.SanitizeString(mapname)
 
-	basicInfoRaw.Description, err = response.ReadString()
+	description, err := response.ReadString()
 	if err != nil {
-		err = errors.New("extinfo: error reading server description: " + err.Error())
+		err = errors.New("extinfo: reading server description: " + err.Error())
 		return
 	}
+	basicInfo.Description = cubecode.SanitizeString(description)
 
 	return
-}
-
-// GetBasicInfo queries a Sauerbraten server at addr on port and returns the parsed response or an error in case something went wrong. Parsed response means that the int values sent as game mode and master mode are translated into the human readable name, e.g. '12' -> "insta ctf".
-func (s *Server) GetBasicInfo() (*BasicInfo, error) {
-	basicInfo := &BasicInfo{}
-
-	basicInfoRaw, err := s.GetBasicInfoRaw()
-	if err != nil {
-		return nil, err
-	}
-
-	basicInfo.BasicInfoRaw = basicInfoRaw
-	basicInfo.GameMode = getGameModeName(basicInfo.BasicInfoRaw.GameMode)
-	basicInfo.MasterMode = getMasterModeName(basicInfo.BasicInfoRaw.MasterMode)
-	basicInfo.Map = cubecode.SanitizeString(basicInfo.Map)
-	basicInfo.Description = cubecode.SanitizeString(basicInfo.Description)
-	return basicInfo, nil
 }
