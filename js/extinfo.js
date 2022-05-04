@@ -1,6 +1,6 @@
 import { scoreboard, serverlist, resetScoreboard } from './model.js'
 import { initSocket, initMasterSocket, free } from './sockets.js'
-import { render } from 'https://unpkg.com/lit-html?module'
+import { render } from 'https://unpkg.com/lit-html@2.2.3/lit-html.js?module'
 import { ui } from './ui.js'
 import { names } from './names.js'
 
