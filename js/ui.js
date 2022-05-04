@@ -1,7 +1,7 @@
-import {html, nothing} from 'https://unpkg.com/lit-html?module'
-import {map} from 'https://unpkg.com/lit-html/directives/map?module'
-import {styleMap} from 'https://unpkg.com/lit-html/directives/style-map?module'
-import {ifDefined} from 'https://unpkg.com/lit-html/directives/if-defined?module'
+import {html, nothing} from 'https://unpkg.com/lit-html@2.2.3/lit-html.js?module'
+import {map} from 'https://unpkg.com/lit-html@2.2.3/directives/map.js?module'
+import {styleMap} from 'https://unpkg.com/lit-html@2.2.3/directives/style-map.js?module'
+import {ifDefined} from 'https://unpkg.com/lit-html@2.2.3/directives/if-defined.js?module'
 import {names} from './names.js'
 
 const timeRemaining = (secsLeft) => {
