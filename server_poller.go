@@ -11,7 +11,7 @@ import (
 )
 
 type ServerPoller struct {
-	*pubsub.Publisher
+	*pubsub.Publisher[[]byte]
 
 	server      *extinfo.Server
 	host        string
@@ -20,7 +20,7 @@ type ServerPoller struct {
 	WithPlayers bool
 }
 
-func NewServerPoller(publisher *pubsub.Publisher, config ...func(*ServerPoller)) error {
+func NewServerPoller(publisher *pubsub.Publisher[[]byte], config ...func(*ServerPoller)) error {
 	sp := &ServerPoller{
 		Publisher: publisher,
 	}
@@ -49,7 +49,7 @@ func (sp *ServerPoller) loop() {
 
 	err := sp.update()
 	if err != nil {
-		log.Println("initial poll failed:", err)
+		log.Println("fetch initial server state:", err)
 		return
 	}
 
@@ -63,7 +63,7 @@ func (sp *ServerPoller) loop() {
 		case <-ticker.C:
 			err := sp.update()
 			if err != nil {
-				log.Println(err)
+				log.Println("fetch server state:", err)
 				errorCount++
 				if errorCount > 10 {
 					log.Println("problem with server, exiting loop")
@@ -92,7 +92,7 @@ func (sp *ServerPoller) update() error {
 
 	update.ServerInfo, err = sp.server.GetBasicInfo()
 	if err != nil {
-		return errors.New("getting basic info from server: " + err.Error())
+		return errors.New("fetch basic info from server: " + err.Error())
 	}
 
 	update.Mod, err = sp.server.GetServerMod()
@@ -103,7 +103,7 @@ func (sp *ServerPoller) update() error {
 	if sp.WithTeams && update.ServerInfo.GameMode.IsTeamMode() {
 		teams, err := sp.server.GetTeamScores()
 		if err != nil {
-			return errors.New("getting info about team scores from server: " + err.Error())
+			return errors.New("fetch info about team scores from server: " + err.Error())
 		}
 		update.Teams = teams.Scores
 	}
@@ -111,7 +111,7 @@ func (sp *ServerPoller) update() error {
 	if sp.WithPlayers {
 		update.Players, err = sp.server.GetClientInfo(-1)
 		if err != nil {
-			return errors.New("getting info about all clients from server: " + err.Error())
+			return errors.New("fetch info about all clients from server: " + err.Error())
 		}
 	}
 

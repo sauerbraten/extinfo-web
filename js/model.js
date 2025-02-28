@@ -10,14 +10,14 @@ const fallbackInfo = {
 
 export const scoreboard = {
     info: {...fallbackInfo},
-    teams: new Map(),
+    teams: {},
     teamless: [],
     spectators: [],
 }
 
-export function resetScoreboard (){
+export const resetScoreboard = () => {
     scoreboard.info = {...fallbackInfo}
-    scoreboard.teams.clear()
+    scoreboard.teams = {}
     scoreboard.teamless = []
     scoreboard.spectators = []
 }

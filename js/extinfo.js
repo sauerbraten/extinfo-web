@@ -1,18 +1,18 @@
 import { scoreboard, serverlist, resetScoreboard } from './model.js'
-import { initSocket, initMasterSocket, free } from './sockets.js'
-import { render } from 'https://unpkg.com/lit-html@2.2.3/lit-html.js?module'
-import { ui } from './ui.js'
+import { initServerSocket, initMasterSocket, free } from './sockets.js'
+import { renderUI } from './ui.js'
 import { names } from './names.js'
+import { initServerSocket } from './web_sockets.js'
 
 let sock = null
 
-function init() {
+const init = () => {
 	if (!('WebSocket' in window)) {
 		alert('sorry, but your browser does not support websockets', 'try updating your browser')
 		return
 	}
 
-	updateUI()
+	renderUI(scoreboard, serverlist)
 
 	const socketFromHash = () => {
 		if (!window.location.hash.substring(1).match(/[a-zA-Z0-9\\.]+:[0-9]+/)) {
@@ -22,7 +22,7 @@ function init() {
 		resetScoreboard()
 		document.title = 'loading … – extinfo'
 		window.scrollTo(window.scrollLeft, 0)
-		sock = initSocket(window.location.hash.substring(1), processServerUpdate)
+		sock = initServerSocket(window.location.hash.substring(1), processServerUpdate)
 	}
 	window.onhashchange = socketFromHash
 	socketFromHash()
@@ -30,54 +30,34 @@ function init() {
 	initMasterSocket(processMasterServerUpdate)
 }
 
-function processMasterServerUpdate(update) {
+const processMasterServerUpdate = (update) => {
 	update.sort((a, b) => b.num_clients - a.num_clients)
 	serverlist.servers = update
-	updateUI()
+	renderUI(scoreboard, serverlist)
 	if (!sock && update.length) {
 		window.location.hash = update[0].address
 	}
 }
 
-function processServerUpdate(update) {
+const processServerUpdate = (update) => {
+	resetScoreboard()
+
 	scoreboard.info = update.serverinfo
-	document.title = update.serverinfo.description + ' – extinfo'
+	document.title = `${update.serverinfo.description} – extinfo`
 
-	let teams = new Map(), teamless = [], spectators = []
-
-	if ('teams' in update) {
-		for (const teamName in update.teams) {
-			let team = update.teams[teamName]
-			team.players = []
-			teams.set(teamName, team)
-		}
+	for (const name in update.teams) {
+		scoreboard.teams[name] = {...update.teams[name], players: []}
 	}
 
-	for (const cn in update.players) {
-		let player = update.players[cn]
+	for (const player of Object.values(update.players)) {
 		if (names.state(player.state) == 'spectator') {
-			spectators.push(player)
-		} else if (teams.has(player.team)) {
-			teams.get(player.team).players.push(player)
+			scoreboard.spectators.push(player)
 		} else {
-			teamless.push(player)
+			scoreboard.teams[player.team]?.players.push(player) || scoreboard.teamless.push(player)
 		}
 	}
 
-	if (teams.size) {
-		scoreboard.teamless = []
-		scoreboard.teams = teams
-	} else {
-		scoreboard.teams.clear()
-		scoreboard.teamless = teamless
-	}
-	scoreboard.spectators = spectators
-
-	updateUI()
-}
-
-function updateUI() {
-	render(ui(scoreboard, serverlist), document.body, {renderBefore: document.getElementById('footer')})
+	renderUI(scoreboard, serverlist)
 }
 
 init()

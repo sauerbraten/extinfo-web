@@ -1,4 +1,4 @@
-function init(path, onUpdate) {
+const initWebSocket = (path, onUpdate) => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const url = `${protocol}//${window.location.host}${path}`
     const sock = new WebSocket(url)
@@ -8,11 +8,11 @@ function init(path, onUpdate) {
     return sock
 }
 
-export const initSocket = (addr, onUpdate) => init(`/server/${addr}`, onUpdate)
+export const initServerSocket = (addr, onUpdate) => initWebSocket(`/server/${addr}`, onUpdate)
 
-export const initMasterSocket = (onUpdate) => init('/master', onUpdate)
+export const initMasterSocket = (onUpdate) => initWebSocket('/master', onUpdate)
 
-export function free(sock) {
+export const free = (sock) => {
     if (!sock) {
         return
     }

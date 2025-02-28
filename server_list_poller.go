@@ -29,7 +29,7 @@ type serverState struct {
 // ServerListPoller polls the master server and publishes updates about the server list by
 // starting a poller for the basic info of each server on the list and subscribing to its updates.
 type ServerListPoller struct {
-	*pubsub.Publisher
+	*pubsub.Publisher[[]byte]
 	subscriptions map[string]chan []byte // server address → update channel
 
 	ms *master.Server
@@ -38,12 +38,12 @@ type ServerListPoller struct {
 	serverUpdates chan serverListEntryUpdate // all update channels are merged into this channel
 }
 
-func NewServerListPoller(publisher *pubsub.Publisher) {
+func NewServerListPoller(publisher *pubsub.Publisher[[]byte]) {
 	slp := &ServerListPoller{
 		Publisher:     publisher,
 		subscriptions: map[string]chan []byte{},
 
-		ms: master.New(DefaultMasterServerAddress, 15*time.Second),
+		ms: master.New(DefaultMasterServerAddress, 60*time.Second),
 
 		serverStates:  map[string]serverState{},
 		serverUpdates: make(chan serverListEntryUpdate),
@@ -60,19 +60,19 @@ func (slp *ServerListPoller) loop() {
 			broker.Unsubscribe(updates, addr)
 		}
 	}()
-	defer debug("stopped polling the master server list")
+	defer debug("stopped polling the server list")
 
-	debug("started polling the master server list")
+	debug("started polling the server list")
 
 	err := slp.refreshServers()
 	if err != nil {
-		log.Println("getting initial master server list:", err)
+		log.Println("fetch initial server list:", err)
 		return
 	}
 
 	err = slp.publishUpdate()
 	if err != nil {
-		log.Println("publishing first update:", err)
+		log.Println("publish initial server list:", err)
 		return
 	}
 
@@ -90,7 +90,7 @@ func (slp *ServerListPoller) loop() {
 		case <-refreshTicker.C:
 			err := slp.refreshServers()
 			if err != nil {
-				log.Println(err)
+				log.Println("fetch server list:", err)
 				masterErrorCount++
 				if masterErrorCount > 10 {
 					log.Println("problem with master server, exiting server list poller loop")
@@ -103,7 +103,7 @@ func (slp *ServerListPoller) loop() {
 		case <-updateTicker.C:
 			err := slp.publishUpdate()
 			if err != nil {
-				log.Println(err)
+				log.Println("publish server list:", err)
 				errorCount++
 				if errorCount > 10 {
 					log.Println("problem with updates, exiting server list poller loop")
@@ -126,7 +126,7 @@ func (slp *ServerListPoller) storeServerUpdate(supd serverListEntryUpdate) {
 	serverUpdate := ServerStateUpdate{}
 	err := json.Unmarshal(supd.Update, &serverUpdate)
 	if err != nil {
-		log.Println("unmarshaling server state update from "+supd.Address+":", err)
+		log.Println("unmarshal server state update from "+supd.Address+":", err)
 		return
 	}
 
@@ -146,39 +146,41 @@ func (slp *ServerListPoller) refreshServers() error {
 
 	// process response
 	for _, addr := range servers {
-		// keep old state if possible
 		oldState, known := slp.serverStates[addr]
-		updatedList[addr] = oldState
 
-		if !known {
-			// subscribe to updates if the server is new
-			updates, publisher := broker.Subscribe(addr)
-			if publisher != nil {
-				host, port, err := hostAndPort(addr)
-				if err != nil {
-					return err
-				}
-				err = NewServerPoller(
-					publisher,
-					func(sp *ServerPoller) { sp.host = host; sp.port = port },
-				)
-				if err != nil {
-					return err
+		if known {
+			// keep most recent state, stay subscribed
+			updatedList[addr] = oldState
+			continue
+		}
+
+		// subscribe to updates if the server is new
+		updates, publisher := broker.Subscribe(addr)
+		if publisher != nil {
+			host, port, err := hostAndPort(addr)
+			if err != nil {
+				return err
+			}
+			err = NewServerPoller(
+				publisher,
+				func(sp *ServerPoller) { sp.host = host; sp.port = port },
+			)
+			if err != nil {
+				return err
+			}
+		}
+
+		slp.subscriptions[addr] = updates
+
+		// merge updates from all servers into one channel to select on
+		go func(addr string, updates <-chan []byte) {
+			for upd := range updates {
+				slp.serverUpdates <- serverListEntryUpdate{
+					Address: addr,
+					Update:  upd,
 				}
 			}
-
-			slp.subscriptions[addr] = updates
-
-			// merge updates from all servers into one channel to select on
-			go func(addr string, updates <-chan []byte) {
-				for upd := range updates {
-					slp.serverUpdates <- serverListEntryUpdate{
-						Address: addr,
-						Update:  upd,
-					}
-				}
-			}(addr, updates)
-		}
+		}(addr, updates)
 	}
 
 	// unsubscribe from updates about servers not on the list anymore
@@ -224,12 +226,12 @@ func (slp *ServerListPoller) publishUpdate() error {
 func hostAndPort(addr string) (string, int, error) {
 	host, _port, err := net.SplitHostPort(addr)
 	if err != nil {
-		return "", -1, fmt.Errorf("parsing '%s' as host:port tuple: %v", addr, err)
+		return "", -1, fmt.Errorf("parse '%s' as host:port tuple: %w", addr, err)
 	}
 
 	port, err := strconv.Atoi(_port)
 	if err != nil {
-		return "", -1, fmt.Errorf("converting port '%s' to int: %v", _port, err)
+		return "", -1, fmt.Errorf("convert port '%s' to int: %w", _port, err)
 	}
 
 	return host, port, nil

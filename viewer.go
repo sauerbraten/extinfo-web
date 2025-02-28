@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"github.com/julienschmidt/httprouter"
 	"github.com/sauerbraten/pubsub"
 )
 
@@ -42,8 +41,8 @@ func (v *Viewer) writeUpdatesUntilClose() {
 }
 
 // handles websocket connections subscribing for server state updates
-func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
-	addr := params.ByName("addr")
+func watchServer(resp http.ResponseWriter, req *http.Request) {
+	addr := req.PathValue("addr")
 	topic := addr + " (detailed)"
 
 	host, port, err := hostAndPort(addr)
@@ -55,22 +54,25 @@ func watchServer(resp http.ResponseWriter, req *http.Request, params httprouter.
 
 	log.Println(req.RemoteAddr, "started watching", topic)
 
-	watch(resp, req, topic, func(publisher *pubsub.Publisher) error {
+	watch(resp, req, topic, func(publisher *pubsub.Publisher[[]byte]) error {
 		return NewServerPoller(
 			publisher,
-			func(sp *ServerPoller) { sp.WithPlayers = true },
-			func(sp *ServerPoller) { sp.WithTeams = true },
-			func(sp *ServerPoller) { sp.host = host; sp.port = port },
+			func(sp *ServerPoller) {
+				sp.host = host
+				sp.port = port
+				sp.WithPlayers = true
+				sp.WithTeams = true
+			},
 		)
 	})
 
 	log.Println(req.RemoteAddr, "stopped watching", topic)
 }
 
-func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.Params) {
+func watchMaster(resp http.ResponseWriter, req *http.Request) {
 	log.Println(req.RemoteAddr, "started watching the master server list")
 
-	watch(resp, req, DefaultMasterServerAddress, func(publisher *pubsub.Publisher) error {
+	watch(resp, req, DefaultMasterServerAddress, func(publisher *pubsub.Publisher[[]byte]) error {
 		NewServerListPoller(publisher)
 		return nil
 	})
@@ -78,7 +80,7 @@ func watchMaster(resp http.ResponseWriter, req *http.Request, params httprouter.
 	log.Println(req.RemoteAddr, "stopped watching the master server list")
 }
 
-func watch(resp http.ResponseWriter, req *http.Request, topic string, useNewPublisher func(*pubsub.Publisher) error) {
+func watch(resp http.ResponseWriter, req *http.Request, topic string, useNewPublisher func(*pubsub.Publisher[[]byte]) error) {
 	conn, err := upgrader.Upgrade(resp, req, nil)
 	if err != nil {
 		log.Println(err)

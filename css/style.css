@@ -8,10 +8,10 @@
 	--main-bg-color: white;
 	--main-fg-color: black;
 	--border-color: black;
-	
+
 	--text-shadow-blur-radius: .5em;
 }
-  
+
 @media (prefers-color-scheme: dark) {
 	:root {
 	  --main-bg-color: black;
@@ -26,7 +26,6 @@ html {
 }
 
 body {
-	/* font-family: 'Roboto Mono', monospace; */
 	font-family: 'Inter', sans-serif;
 	font-size: 12pt;
 	font-weight: 500;

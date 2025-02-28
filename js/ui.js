@@ -1,7 +1,7 @@
-import {html, nothing} from 'https://unpkg.com/lit-html@2.2.3/lit-html.js?module'
-import {map} from 'https://unpkg.com/lit-html@2.2.3/directives/map.js?module'
-import {styleMap} from 'https://unpkg.com/lit-html@2.2.3/directives/style-map.js?module'
-import {ifDefined} from 'https://unpkg.com/lit-html@2.2.3/directives/if-defined.js?module'
+import {html, nothing, render} from 'https://cdn.jsdelivr.net/npm/lit-html@3/+esm'
+import {map} from 'https://cdn.jsdelivr.net/npm/lit-html@3/directives/map/+esm'
+import {styleMap} from 'https://cdn.jsdelivr.net/npm/lit-html@3/directives/style-map/+esm'
+import {ifDefined} from 'https://cdn.jsdelivr.net/npm/lit-html@3/directives/if-defined/+esm'
 import {names} from './names.js'
 
 const timeRemaining = (secsLeft) => {
@@ -20,18 +20,18 @@ const playerName = (name, cn, priv) => html`
     </span>`
 
 const playerList = (title, players) => {
-    const sorted = players.sort((a, b) => {
-            // sorts by frags (descending), then deaths (ascending), then accuracy (descending)
-            if (a.frags !== b.frags) {
-                return b.frags - a.frags
+    const byStats = (a, b) => {
+        // sorts by frags (descending), then deaths (ascending), then accuracy (descending)
+        if (a.frags !== b.frags) {
+            return b.frags - a.frags
+        } else {
+            if (a.deaths !== b.deaths) {
+                return a.deaths - b.deaths
             } else {
-                if (a.deaths !== b.deaths) {
-                    return a.deaths - b.deaths
-                } else {
-                    return b.accuracy - a.accuracy
-                }
+                return b.accuracy - a.accuracy
             }
-        })
+        }
+    }
 
     return html`
     <div class='team flex flex-col'>
@@ -47,7 +47,7 @@ const playerList = (title, players) => {
                     </tr>
                 </thead>
                 <tbody>
-                    ${map(sorted, p => html`
+                    ${map(players.sort(byStats), p => html`
                     <tr>
                         <td class='count'>${p.frags}</td>
                         <td class='count'>${p.deaths}</td>
@@ -60,12 +60,12 @@ const playerList = (title, players) => {
     </div>`
 }
 
-const scoreBoard = (info, teams, teamless, spectators) => {
+const scoreboardComponent = ({info, teams, teamless, spectators}) => {
     const bgImgOverlayCSS = 'linear-gradient(rgba(0, 0, 0, .3), rgba(0, 0, 0, .3))'
     const bgImgMapshotCSS = m => `url('//sauertracker.net/images/mapshots/${m}.jpg') no-repeat center center / cover`
     const bgImgFallbackCSS = bgImgMapshotCSS('firstevermap')
     const backgroundImageCSS = (m) => `${bgImgOverlayCSS}, ${bgImgMapshotCSS(m)}, ${bgImgFallbackCSS}`
-    
+
     return html`
     <main id='scoreboard' style='${styleMap({ background: backgroundImageCSS(info.map) })}'>
 		<header>
@@ -78,7 +78,7 @@ const scoreBoard = (info, teams, teamless, spectators) => {
 		</header>
 
 		<section class='flex flex-row'>
-            ${map(teams, ([_, t]) => playerList(`${t.name}: ${t.score}`, t.players))}
+            ${map(Object.values(teams), t => playerList(`${t.name}: ${t.score}`, t.players))}
 			${teamless.length ? playerList('players', teamless) : nothing}
 		</section>
 
@@ -92,8 +92,7 @@ const scoreBoard = (info, teams, teamless, spectators) => {
 	</main>`
 }
 
-
-const serverList = (servers) => {
+const serverlistComponent = ({servers}) => {
     return servers.length
       ? html`<div class='scrollable-x'>
             <table>
@@ -125,9 +124,14 @@ const serverList = (servers) => {
       : html`<div><p class='centered'>loading...</p></div>`
 }
 
-export const ui = ({info, teams, teamless, spectators}, serverlist) => html`
-    ${scoreBoard(info, teams, teamless, spectators)}
-	<aside id='serverlist' class='flex flex-col'>
-		<h2>other servers</h2>
-		${serverList(serverlist.servers)}
-	</aside>`
+const body = (scoreboard, serverlist) => html`
+    ${scoreboardComponent(scoreboard)}
+
+    <aside id='serverlist' class='flex flex-col'>
+        <h2>other servers</h2>
+        ${serverlistComponent(serverlist)}
+    </aside>`
+
+export const renderUI = (scoreboard, serverlist) => {
+    render(body(scoreboard, serverlist), document.body, {renderBefore: document.getElementById('footer')})
+}
